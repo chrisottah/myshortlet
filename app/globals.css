@@ -128,3 +128,39 @@
     @apply font-sans;
   }
 }
+
+/* MyShortlet brand tokens */
+@theme {
+  /* Core palette */
+  --color-charcoal: #14130f;
+  --color-charcoal-soft: #1f1e19;
+  --color-ivory: #faf7f0;
+  --color-ivory-muted: #f0ebdf;
+  --color-emerald: #0f6e4f;
+  --color-emerald-soft: #e6f2ec;
+  --color-champagne: #c9a86a;
+  --color-champagne-soft: #f2e9d8;
+
+  /* Semantic */
+  --color-success: #0f6e4f;
+  --color-warning: #b8842e;
+  --color-danger: #a8352c;
+  --color-info: #2a5f8f;
+
+  /* Fonts */
+  --font-display: var(--font-display), "Plus Jakarta Sans", sans-serif;
+  --font-body: var(--font-body), "Inter", sans-serif;
+
+  /* Radii */
+  --radius-card: 1rem;
+  --radius-pill: 999px;
+}
+
+body {
+  background-color: var(--color-ivory);
+  color: var(--color-charcoal);
+}
+
+.text-balance {
+  text-wrap: balance;
+}
