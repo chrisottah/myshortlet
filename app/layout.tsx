@@ -2,6 +2,9 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import "./globals.css";
+import { seedAll } from "@/lib/mock-data/seed";
+
+seedAll();
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
