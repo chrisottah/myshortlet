@@ -23,10 +23,13 @@ export function generateStaticParams() {
 
 export default async function OpportunityDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ error?: string; success?: string }>;
 }) {
   const { slug } = await params;
+  const { error, success } = await searchParams;
   const opportunity = investmentService.getOpportunityById(slug);
   if (!opportunity) notFound();
 
@@ -46,6 +49,17 @@ export default async function OpportunityDetailPage({
         >
           ← Back to Opportunities
         </Link>
+
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="mt-4 rounded-lg border border-emerald/30 bg-emerald/10 px-4 py-3 text-sm text-emerald">
+            {success}
+          </div>
+        )}
 
         {/* Gallery */}
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-4 sm:grid-rows-2">
