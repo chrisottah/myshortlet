@@ -8,6 +8,7 @@ import { INVESTMENT_CONFIG } from "@/lib/config/investment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { createInvestmentAction } from "@/lib/investments/actions";
 
 export function InvestmentCalculator({
   opportunity,
@@ -132,12 +133,18 @@ export function InvestmentCalculator({
         </div>
       </div>
 
-      <Button
-        className="mt-5 w-full bg-emerald text-ivory hover:bg-emerald/90"
-        disabled={!calc}
-      >
-        Invest Now
-      </Button>
+      <form action={createInvestmentAction}>
+        <input type="hidden" name="opportunityId" value={opportunity.id} />
+        <input type="hidden" name="amount" value={activeAmount} />
+        <input type="hidden" name="termMonths" value={term} />
+        <Button
+          type="submit"
+          className="mt-5 w-full bg-emerald text-ivory hover:bg-emerald/90"
+          disabled={!calc}
+        >
+          Invest Now
+        </Button>
+      </form>
       <p className="mt-2 text-center text-[11px] leading-relaxed text-charcoal/40">
         Illustrative figures for prototype purposes only. Not a guarantee of
         returns.
