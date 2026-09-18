@@ -11,6 +11,7 @@ import {
   Bell,
   Settings,
   LogOut,
+  Home,
 } from "lucide-react";
 import { Wordmark } from "@/components/shared/wordmark";
 import { logoutAction } from "@/lib/auth/actions";
@@ -83,7 +84,7 @@ export function DashboardShell({
               <p className="truncate text-xs text-charcoal/50">{user.email}</p>
             </div>
           </div>
-          <form action={logoutAction}>
+                    <form action={logoutAction}>
             <button
               type="submit"
               className="mt-2 flex w-full items-center gap-3 rounded-card px-3 py-2 text-sm font-medium text-charcoal/70 hover:bg-charcoal/5 hover:text-charcoal transition-colors"
@@ -92,6 +93,13 @@ export function DashboardShell({
               Log out
             </button>
           </form>
+          <Link
+            href="/"
+            className="mt-2 flex w-full items-center gap-3 rounded-card px-3 py-2 text-sm font-medium text-charcoal/70 hover:bg-charcoal/5 hover:text-charcoal transition-colors"
+          >
+            <Home size={18} />
+            Return to Home
+          </Link>
         </div>
       </aside>
 
@@ -101,8 +109,13 @@ export function DashboardShell({
           <Link href="/">
             <Wordmark />
           </Link>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald text-white text-xs font-semibold">
-            {getInitials(user.firstName, user.lastName)}
+          <div className="flex items-center gap-3">
+            <Link href="/" className="text-xs font-medium text-charcoal/60">
+              Home
+            </Link>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald text-white text-xs font-semibold">
+              {getInitials(user.firstName, user.lastName)}
+            </div>
           </div>
         </header>
 

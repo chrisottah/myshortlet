@@ -16,6 +16,19 @@ function findUserById(userId: string): User | undefined {
   return all.find((u) => u.id === userId);
 }
 
+function getRedirectPathForRole(user: User): string {
+  switch (user.role) {
+    case "investor":
+      return "/dashboard";
+    case "property_owner":
+      return "/partner/dashboard";
+    case "admin":
+      return "/admin";
+    default:
+      return "/";
+  }
+}
+
 export async function loginWithEmail(formData: FormData) {
   const email = (formData.get("email") as string)?.trim();
   const user = email ? findUserByEmail(email) : undefined;
@@ -27,7 +40,7 @@ export async function loginWithEmail(formData: FormData) {
   }
 
   await createSession(user);
-  redirect("/");
+  redirect(getRedirectPathForRole(user));
 }
 
 export async function loginAsDemo(formData: FormData) {
@@ -36,7 +49,7 @@ export async function loginAsDemo(formData: FormData) {
   if (!user) redirect("/login");
 
   await createSession(user);
-  redirect("/");
+  redirect(getRedirectPathForRole(user));
 }
 
 export async function logoutAction() {

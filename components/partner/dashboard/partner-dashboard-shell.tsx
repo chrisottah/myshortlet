@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutGrid, Building2, PlusCircle, Settings as SettingsIcon, LogOut, Menu } from "lucide-react";
+import { LayoutGrid, Building2, PlusCircle, Settings as SettingsIcon, LogOut, Menu, Home } from "lucide-react";
 import { useState } from "react";
 import { logoutAction } from "@/lib/auth/actions";
 import type { PropertyOwner, Property } from "@/lib/types";
@@ -72,6 +72,12 @@ export function PartnerDashboardShell({
               <LogOut size={16} /> Log out
             </button>
           </form>
+          <Link
+            href="/"
+            className="mt-2 flex items-center gap-2 text-sm text-charcoal/60 hover:text-charcoal"
+          >
+            <Home size={16} /> Return to Home
+          </Link>
         </div>
       </aside>
 
@@ -80,9 +86,14 @@ export function PartnerDashboardShell({
         <Link href="/" className="font-display text-charcoal">
           MyShortlet
         </Link>
-        <button onClick={() => setMobileOpen((v) => !v)} aria-label="Menu">
-          <Menu size={22} />
-        </button>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="text-xs font-medium text-charcoal/60">
+            Home
+          </Link>
+          <button onClick={() => setMobileOpen((v) => !v)} aria-label="Menu">
+            <Menu size={22} />
+          </button>
+        </div>
       </div>
       {mobileOpen && (
         <div className="md:hidden fixed top-14 inset-x-0 z-30 bg-ivory border-b border-charcoal/10 p-4 space-y-1">

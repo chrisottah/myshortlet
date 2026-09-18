@@ -42,7 +42,10 @@ export const adminService = {
   getDashboardMetrics() {
     const pendingDeposits = paymentService.getPending();
     const pendingWithdrawals = withdrawalService.getPending();
-    const pendingProperties = propertyService.getByStatus("under_review");
+    const pendingProperties = [
+    ...propertyService.getByStatus("submitted"),
+    ...propertyService.getByStatus("under_review"),
+    ];
     const allTransactions = transactionService.getAll();
 
     const totalDepositVolume = paymentService

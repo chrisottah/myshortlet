@@ -49,6 +49,44 @@ export const investmentService = {
     items.forEach((item) => opportunityRepo.create(item));
   },
 
+  createOpportunity(input: {
+  propertyId: string;
+  title: string;
+  summary: string;
+  minInvestment: number;
+  maxInvestment?: number;
+  targetAmount: number;
+  termMonths: number;
+  illustrativeReturnRate: number;
+  openDate: string;
+  closeDate: string;
+  badges?: InvestmentOpportunity["badges"];
+}): InvestmentOpportunity {
+  const now = new Date().toISOString();
+  const isOpenAlready = new Date(input.openDate) <= new Date(now);
+
+  const opportunity: InvestmentOpportunity = {
+    id: generateId("opp"),
+    propertyId: input.propertyId,
+    title: input.title,
+    summary: input.summary,
+    minInvestment: input.minInvestment,
+    maxInvestment: input.maxInvestment,
+    targetAmount: input.targetAmount,
+    amountRaised: 0,
+    termMonths: input.termMonths,
+    illustrativeReturnRate: input.illustrativeReturnRate,
+    status: isOpenAlready ? "open" : "upcoming",
+    badges: input.badges ?? [],
+    openDate: input.openDate,
+    closeDate: input.closeDate,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  return opportunityRepo.create(opportunity);
+},
+
   calculateInvestment(amount: number, termMonths: number, opportunityId: string) {
     const opportunity = opportunityRepo.findById(opportunityId);
     if (!opportunity) throw new Error("Opportunity not found");
