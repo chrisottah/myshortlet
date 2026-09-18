@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutGrid, Building2, PlusCircle, LogOut, Menu } from "lucide-react";
+import { LayoutGrid, Building2, PlusCircle, Settings as SettingsIcon, LogOut, Menu } from "lucide-react";
 import { useState } from "react";
 import { logoutAction } from "@/lib/auth/actions";
 import type { PropertyOwner, Property } from "@/lib/types";
@@ -10,6 +10,7 @@ import type { PropertyOwner, Property } from "@/lib/types";
 const NAV_ITEMS = [
   { href: "/partner/dashboard", label: "Overview", icon: LayoutGrid },
   { href: "/partner/dashboard/properties", label: "My Properties", icon: Building2 },
+  { href: "/partner/dashboard/settings", label: "Settings", icon: SettingsIcon },
   { href: "/partner/apply", label: "Submit New", icon: PlusCircle },
 ];
 
@@ -29,12 +30,10 @@ export function PartnerDashboardShell({
     <div className="min-h-screen bg-ivory-muted flex">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-64 md:flex-col border-r border-charcoal/10 bg-ivory">
-        <div className="p-6 border-b border-charcoal/10">
-          <p className="font-display text-lg text-charcoal">
-            {user.companyName ?? `${user.firstName} ${user.lastName}`}
-          </p>
+        <Link href="/" className="block p-6 border-b border-charcoal/10 hover:bg-charcoal/5 transition-colors">
+          <p className="font-display text-lg text-charcoal">MyShortlet</p>
           <p className="text-sm text-charcoal/60">Property Partner</p>
-        </div>
+        </Link>
         <nav className="flex-1 p-4 space-y-1">
           {NAV_ITEMS.map((item) => {
             const active = pathname === item.href;
@@ -78,9 +77,9 @@ export function PartnerDashboardShell({
 
       {/* Mobile top bar */}
       <div className="md:hidden fixed top-0 inset-x-0 z-40 bg-ivory border-b border-charcoal/10 flex items-center justify-between px-4 h-14">
-        <p className="font-display text-charcoal">
-          {user.companyName ?? `${user.firstName} ${user.lastName}`}
-        </p>
+        <Link href="/" className="font-display text-charcoal">
+          MyShortlet
+        </Link>
         <button onClick={() => setMobileOpen((v) => !v)} aria-label="Menu">
           <Menu size={22} />
         </button>

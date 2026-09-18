@@ -43,9 +43,9 @@ export function DashboardShell({
     <div className="min-h-screen bg-ivory-muted flex">
       {/* Sidebar */}
       <aside className="hidden md:flex md:w-64 md:flex-col border-r border-charcoal/10 bg-white">
-        <div className="px-6 py-5 border-b border-charcoal/10">
+        <Link href="/" className="block px-6 py-5 border-b border-charcoal/10 hover:bg-charcoal/5 transition-colors">
           <Wordmark />
-        </div>
+        </Link>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
           {NAV_ITEMS.map((item) => {
@@ -98,7 +98,9 @@ export function DashboardShell({
       {/* Mobile top bar */}
       <div className="flex flex-1 flex-col">
         <header className="flex md:hidden items-center justify-between border-b border-charcoal/10 bg-white px-4 py-3">
-          <Wordmark />
+          <Link href="/">
+            <Wordmark />
+          </Link>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald text-white text-xs font-semibold">
             {getInitials(user.firstName, user.lastName)}
           </div>

@@ -81,9 +81,10 @@ export function PropertiesListClient({
       ) : (
         <div className="space-y-3">
           {filtered.map(({ property, opportunity }) => (
-            <div
+            <Link
               key={property.id}
-              className="rounded-card border border-charcoal/10 bg-white p-5"
+              href={`/partner/dashboard/properties/${property.id}`}
+              className="block rounded-card border border-charcoal/10 bg-white p-5 hover:border-charcoal/20 transition-colors"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -133,7 +134,7 @@ export function PropertiesListClient({
                   {property.reviewNotes[property.reviewNotes.length - 1].note}
                 </p>
               ) : null}
-            </div>
+            </Link>
           ))}
         </div>
       )}
