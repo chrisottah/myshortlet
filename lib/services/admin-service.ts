@@ -2,7 +2,6 @@
 
 import { MockRepository, generateId } from "./mock-db";
 import { AuditLog } from "@/lib/types";
-import { investmentService } from "./investment-service";
 import { propertyService } from "./property-service";
 import { paymentService } from "./payment-service";
 import { withdrawalService } from "./withdrawal-service";
