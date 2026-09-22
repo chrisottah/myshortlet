@@ -90,7 +90,7 @@ export function NavbarClient({ user }: { user: User | null }) {
               </Button>
             }
           />
-          <SheetContent side="right" className="w-72 bg-ivory">
+          <SheetContent side="right" className="w-72 bg-ivory p-6">
             <SheetHeader>
               <SheetTitle>
                 <Wordmark />

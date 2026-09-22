@@ -83,13 +83,8 @@ export default async function LoginPage({
           {DEMO_ACCOUNTS.map((acc) => (
             <form key={acc.userId} action={loginAsDemo}>
               <input type="hidden" name="userId" value={acc.userId} />
-              <Button
-                type="submit"
-                variant="outline"
-                className="w-full justify-between"
-              >
-                <span>{acc.label}</span>
-                <span className="text-xs text-charcoal/40">{acc.email}</span>
+              <Button type="submit" variant="outline" className="w-full">
+                {acc.label}
               </Button>
             </form>
           ))}
