@@ -62,7 +62,7 @@ export default function Home() {
                   </Button>
                 </Link>
                 <Link href="/how-it-works">
-                  <Button size="lg" variant="outline" className="border-ivory/30 text-ivory hover:bg-ivory/10">
+                  <Button size="lg" variant="outline" className="border-ivory/30 bg-transparent text-ivory hover:bg-ivory/10">
                     How It Works
                   </Button>
                 </Link>
