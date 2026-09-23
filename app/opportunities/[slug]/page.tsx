@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { investmentService } from "@/lib/services/investment-service";
 import { propertyService } from "@/lib/services/property-service";
 import { MapPin, Bed, Bath, Users } from "lucide-react";
+import { getGalleryForId } from "@/lib/mock-data/stock-images";
+import Image from "next/image";
+
 
 const BADGE_LABELS: Record<string, string> = {
   featured: "Featured",
@@ -34,6 +37,7 @@ export default async function OpportunityDetailPage({
   if (!opportunity) notFound();
 
   const property = propertyService.getById(opportunity.propertyId);
+  const gallery = getGalleryForId(opportunity.id, 5);
   const progress = Math.min(
     100,
     Math.round((opportunity.amountRaised / opportunity.targetAmount) * 100)
@@ -61,11 +65,53 @@ export default async function OpportunityDetailPage({
           </div>
         )}
 
-        {/* Gallery */}
+                {/* Gallery */}
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-4 sm:grid-rows-2">
-          <div className="h-64 rounded-card bg-ivory-muted sm:col-span-2 sm:row-span-2 sm:h-full" />
-          <div className="h-32 rounded-card bg-ivory-muted" />
-          <div className="h-32 rounded-card bg-ivory-muted" />
+          <div className="relative h-64 overflow-hidden rounded-card sm:col-span-2 sm:row-span-2 sm:h-full">
+            <Image
+              src={gallery[0]}
+              alt={opportunity.title}
+              fill
+              sizes="(max-width: 640px) 100vw, 50vw"
+              className="object-cover"
+            />
+          </div>
+          <div className="relative h-32 overflow-hidden rounded-card">
+            <Image
+              src={gallery[1]}
+              alt={`${opportunity.title} interior`}
+              fill
+              sizes="(max-width: 640px) 50vw, 25vw"
+              className="object-cover"
+            />
+          </div>
+          <div className="relative h-32 overflow-hidden rounded-card">
+            <Image
+              src={gallery[2]}
+              alt={`${opportunity.title} view`}
+              fill
+              sizes="(max-width: 640px) 50vw, 25vw"
+              className="object-cover"
+            />
+          </div>
+          <div className="relative h-32 overflow-hidden rounded-card">
+            <Image
+              src={gallery[3]}
+              alt={`${opportunity.title} interior 2`}
+              fill
+              sizes="(max-width: 640px) 50vw, 25vw"
+              className="object-cover"
+            />
+          </div>
+          <div className="relative h-32 overflow-hidden rounded-card">
+            <Image
+              src={gallery[4]}
+              alt={`${opportunity.title} view 2`}
+              fill
+              sizes="(max-width: 640px) 50vw, 25vw"
+              className="object-cover"
+            />
+          </div>
         </div>
 
         <div className="mt-10 grid gap-10 lg:grid-cols-3">

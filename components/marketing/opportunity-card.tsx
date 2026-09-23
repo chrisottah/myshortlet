@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { InvestmentOpportunity } from "@/lib/types";
+import { getImageForId } from "@/lib/mock-data/stock-images";
+import Image from "next/image";
 
 const BADGE_LABELS: Record<string, string> = {
   featured: "Featured",
@@ -21,8 +23,16 @@ export function OpportunityCard({ opportunity }: { opportunity: InvestmentOpport
       href={`/opportunities/${opportunity.id}`}
       className="group block overflow-hidden rounded-card border border-charcoal/10 bg-white transition-shadow hover:shadow-lg"
     >
-      <div className="relative h-44 w-full bg-ivory-muted">
-        <div className="absolute left-3 top-3 flex gap-2">
+      <div className="relative h-44 w-full overflow-hidden">
+        <Image
+          src={getImageForId(opportunity.id)}
+          alt={opportunity.title}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
+        <div className="absolute left-3 top-3 z-10 flex gap-2">
           {opportunity.badges.map((badge) => (
             <Badge key={badge} className="bg-emerald text-ivory">
               {BADGE_LABELS[badge]}

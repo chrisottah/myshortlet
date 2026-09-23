@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Navbar } from "@/components/marketing/navbar";
 import { Footer } from "@/components/marketing/footer";
+import { Hero } from "@/components/marketing/hero";
 import { OpportunityCard } from "@/components/marketing/opportunity-card";
 import { Button } from "@/components/ui/button";
 import { investmentService } from "@/lib/services/investment-service";
@@ -44,32 +45,7 @@ export default function Home() {
 
       <main>
         {/* Hero */}
-        <section className="relative overflow-hidden bg-charcoal">
-          <div className="mx-auto max-w-7xl px-6 py-24 lg:py-32">
-            <div className="max-w-2xl">
-              <h1 className="font-display text-4xl font-bold leading-tight text-ivory sm:text-5xl lg:text-6xl">
-                Put your money to work in short-let opportunities.
-              </h1>
-              <p className="mt-6 text-lg text-ivory/70">
-                Explore vetted short-let investment opportunities across
-                Nigeria and grow your capital with illustrative returns,
-                starting from ₦100,000.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-4">
-                <Link href="/opportunities">
-                  <Button size="lg" className="bg-emerald text-ivory hover:bg-emerald/90">
-                    Explore Opportunities
-                  </Button>
-                </Link>
-                <Link href="/how-it-works">
-                  <Button size="lg" variant="outline" className="border-ivory/30 bg-transparent text-ivory hover:bg-ivory/10">
-                    How It Works
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
+        <Hero />
 
         {/* Trust stats */}
         <section className="border-b border-charcoal/10 bg-ivory-muted">

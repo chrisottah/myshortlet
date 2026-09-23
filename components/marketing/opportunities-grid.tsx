@@ -93,7 +93,7 @@ export function OpportunitiesGrid({
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 rounded-card border border-charcoal/10 bg-ivory-muted p-4">
         <Select value={status} onValueChange={(v) => setStatus(v ?? "all")}>
-          <SelectTrigger className="w-[160px] bg-white">
+          <SelectTrigger className="w-40 bg-white">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -106,7 +106,7 @@ export function OpportunitiesGrid({
         </Select>
 
         <Select value={term} onValueChange={(v) => setTerm(v ?? "all")}>
-          <SelectTrigger className="w-[160px] bg-white">
+          <SelectTrigger className="w-40 bg-white">
             <SelectValue placeholder="Term" />
           </SelectTrigger>
           <SelectContent>
@@ -119,7 +119,7 @@ export function OpportunitiesGrid({
         </Select>
 
         <Select value={sort} onValueChange={(v) => setSort((v ?? "newest") as SortOption)}>
-          <SelectTrigger className="w-[220px] bg-white">
+          <SelectTrigger className="w-55 bg-white">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
