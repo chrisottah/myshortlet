@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MyShortlet
+
+A prototype web platform exploring a short-let real estate investment model, built with Next.js and TypeScript.
+
+> **Status: Prototype / Demo.** This project simulates its core flows end-to-end — accounts, wallets, investments, deposits, withdrawals — using mock data and an in-memory service layer. No real payments, banking, or crypto integrations are connected. All figures and returns shown in the app are illustrative only.
+
+## Tech Stack
+
+- **Framework:** Next.js (App Router), TypeScript (strict)
+- **Styling:** Tailwind CSS, shadcn/ui component primitives
+- **Animation:** Framer Motion
+- **Data (current):** In-memory mock service layer, structured for a future relational database migration
+- **Deployment target:** Vercel
+
+## Project Status
+
+The frontend — public marketing pages, authentication flow, investor dashboard, and admin tooling — is feature-complete against the current mock data layer. Backend persistence (a real database) is the next phase of work and is not yet implemented; data does not currently persist across server restarts.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build   # production build check
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## High-Level Structure
 
-## Learn More
+```
+app/          Route pages (App Router)
+components/   UI components, organized by feature area
+lib/          Services, types, and shared utilities
+public/       Static assets
+```
 
-To learn more about Next.js, take a look at the following resources:
+Further internal documentation (data model, business rules, architectural decisions) is maintained privately and is not included in this repository.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+All rights reserved. This is a private prototype; no license is granted for reuse, distribution, or derivative work.
