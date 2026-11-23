@@ -4,13 +4,19 @@ import Link from "next/link";
 import { Navbar } from "@/components/marketing/navbar";
 import { Footer } from "@/components/marketing/footer";
 import { InvestmentCalculator } from "@/components/marketing/investment-calculator";
+import { PropertyGallery } from "@/components/marketing/property-gallery";
 import { Badge } from "@/components/ui/badge";
 import { investmentService } from "@/lib/services/investment-service";
 import { propertyService } from "@/lib/services/property-service";
-import { MapPin, Bed, Bath, Users } from "lucide-react";
-import { getGalleryForId } from "@/lib/mock-data/stock-images";
-import Image from "next/image";
+import { INVESTMENT_CONFIG, getTierForMinInvestment } from "@/lib/config/investment";
 
+import {
+  getHeadlineReturn,
+  getTermRange,
+  getTotalReturnRate,
+} from "@/lib/config/investment-engine";
+import { getPropertyImages } from "@/lib/property-images";
+import { MapPin, Bed, Bath, Users } from "lucide-react";
 
 const BADGE_LABELS: Record<string, string> = {
   featured: "Featured",
@@ -18,6 +24,8 @@ const BADGE_LABELS: Record<string, string> = {
   almost_funded: "Almost Funded",
   popular: "Popular",
 };
+
+const pct = (rate: number) => `${(rate * 100).toFixed(2)}%`;
 
 export function generateStaticParams() {
   const opportunities = investmentService.getOpportunities();
@@ -37,7 +45,10 @@ export default async function OpportunityDetailPage({
   if (!opportunity) notFound();
 
   const property = propertyService.getById(opportunity.propertyId);
-  const gallery = getGalleryForId(opportunity.id, 5);
+  const gallery = getPropertyImages(property, opportunity.id);
+  const tier = getTierForMinInvestment(opportunity.minInvestment);
+  const headline = getHeadlineReturn();
+  const { min, max } = getTermRange();
   const progress = Math.min(
     100,
     Math.round((opportunity.amountRaised / opportunity.targetAmount) * 100)
@@ -65,59 +76,15 @@ export default async function OpportunityDetailPage({
           </div>
         )}
 
-                {/* Gallery */}
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-4 sm:grid-rows-2">
-          <div className="relative h-64 overflow-hidden rounded-card sm:col-span-2 sm:row-span-2 sm:h-full">
-            <Image
-              src={gallery[0]}
-              alt={opportunity.title}
-              fill
-              sizes="(max-width: 640px) 100vw, 50vw"
-              className="object-cover"
-            />
-          </div>
-          <div className="relative h-32 overflow-hidden rounded-card">
-            <Image
-              src={gallery[1]}
-              alt={`${opportunity.title} interior`}
-              fill
-              sizes="(max-width: 640px) 50vw, 25vw"
-              className="object-cover"
-            />
-          </div>
-          <div className="relative h-32 overflow-hidden rounded-card">
-            <Image
-              src={gallery[2]}
-              alt={`${opportunity.title} view`}
-              fill
-              sizes="(max-width: 640px) 50vw, 25vw"
-              className="object-cover"
-            />
-          </div>
-          <div className="relative h-32 overflow-hidden rounded-card">
-            <Image
-              src={gallery[3]}
-              alt={`${opportunity.title} interior 2`}
-              fill
-              sizes="(max-width: 640px) 50vw, 25vw"
-              className="object-cover"
-            />
-          </div>
-          <div className="relative h-32 overflow-hidden rounded-card">
-            <Image
-              src={gallery[4]}
-              alt={`${opportunity.title} view 2`}
-              fill
-              sizes="(max-width: 640px) 50vw, 25vw"
-              className="object-cover"
-            />
-          </div>
+        <div className="mt-4">
+          <PropertyGallery images={gallery} title={opportunity.title} />
         </div>
 
         <div className="mt-10 grid gap-10 lg:grid-cols-3">
           {/* Left column */}
           <div className="lg:col-span-2">
             <div className="flex flex-wrap gap-2">
+              <Badge className="bg-charcoal text-ivory">{tier.name}</Badge>
               {opportunity.badges.map((badge) => (
                 <Badge key={badge} className="bg-emerald text-ivory">
                   {BADGE_LABELS[badge]}
@@ -199,16 +166,41 @@ export default async function OpportunityDetailPage({
                 </div>
                 <div>
                   <p className="font-display text-lg font-bold text-charcoal">
-                    {opportunity.termMonths} mo
+                    {min}–{max} mo
                   </p>
-                  <p className="text-xs text-charcoal/50">Term</p>
+                  <p className="text-xs text-charcoal/50">Terms</p>
                 </div>
                 <div>
                   <p className="font-display text-lg font-bold text-emerald">
-                    {(opportunity.illustrativeReturnRate * 100).toFixed(1)}%
+                    {pct(headline.totalReturnRate)}
                   </p>
-                  <p className="text-xs text-charcoal/50">Illustrative Return</p>
+                  <p className="text-xs text-charcoal/50">
+                    Illustrative ({headline.termMonths} mo)
+                  </p>
                 </div>
+              </div>
+            </div>
+
+            {/* Return schedule: follows the figures in lib/config/investment.ts */}
+            <div className="mt-6 rounded-card border border-charcoal/10 bg-white p-6">
+              <h3 className="font-display text-lg font-semibold text-charcoal">
+                Return schedule
+              </h3>
+              <p className="mt-1 text-xs text-charcoal/50">
+                Illustrative total return for each term. Figures are for
+                prototype purposes only.
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {INVESTMENT_CONFIG.availableTerms.map((t) => (
+                  <div key={t} className="rounded-lg bg-ivory-muted p-3 text-center">
+                    <p className="text-xs text-charcoal/50">
+                      {t} {t === 1 ? "month" : "months"}
+                    </p>
+                    <p className="font-display text-lg font-bold text-emerald">
+                      {pct(getTotalReturnRate(t))}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

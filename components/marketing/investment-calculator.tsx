@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { InvestmentOpportunity } from "@/lib/types";
 import { buildInvestmentCalculation } from "@/lib/config/investment-engine";
-import { INVESTMENT_CONFIG } from "@/lib/config/investment";
+import { INVESTMENT_CONFIG, getTierForMinInvestment } from "@/lib/config/investment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -15,25 +15,22 @@ export function InvestmentCalculator({
 }: {
   opportunity: InvestmentOpportunity;
 }) {
-  const presets = INVESTMENT_CONFIG.presetAmounts.filter(
-    (amt) => amt >= opportunity.minInvestment
-  );
+  const tier = getTierForMinInvestment(opportunity.minInvestment);
+  const presets = tier.presetAmounts.filter((amt) => amt >= opportunity.minInvestment);
 
-  const [amount, setAmount] = useState<number>(
-    presets[0] ?? opportunity.minInvestment
-  );
+  const defaultTerm = INVESTMENT_CONFIG.availableTerms.includes(opportunity.termMonths)
+    ? opportunity.termMonths
+    : INVESTMENT_CONFIG.headlineTermMonths;
+
+  const [amount, setAmount] = useState<number>(presets[0] ?? opportunity.minInvestment);
   const [customAmount, setCustomAmount] = useState<string>("");
-  const [term, setTerm] = useState<number>(opportunity.termMonths);
+  const [term, setTerm] = useState<number>(defaultTerm);
 
   const activeAmount = customAmount ? Number(customAmount) || 0 : amount;
 
   const calc = useMemo(() => {
     if (activeAmount < opportunity.minInvestment) return null;
-    return buildInvestmentCalculation(
-      activeAmount,
-      term,
-      opportunity.illustrativeReturnRate
-    );
+    return buildInvestmentCalculation(activeAmount, term);
   }, [activeAmount, term, opportunity]);
 
   const belowMin = activeAmount > 0 && activeAmount < opportunity.minInvestment;
@@ -60,7 +57,7 @@ export function InvestmentCalculator({
                 setCustomAmount("");
               }}
               className={cn(
-                "rounded-md border px-3 py-2 text-sm font-medium transition-colors",
+                "cursor-pointer rounded-md border px-3 py-2 text-sm font-medium transition-colors",
                 !customAmount && amount === preset
                   ? "border-emerald bg-emerald-soft text-emerald"
                   : "border-charcoal/15 text-charcoal/70 hover:border-charcoal/30"
@@ -99,7 +96,7 @@ export function InvestmentCalculator({
               type="button"
               onClick={() => setTerm(t)}
               className={cn(
-                "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+                "cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
                 term === t
                   ? "border-emerald bg-emerald-soft text-emerald"
                   : "border-charcoal/15 text-charcoal/70 hover:border-charcoal/30"
@@ -114,9 +111,9 @@ export function InvestmentCalculator({
       {/* Breakdown */}
       <div className="mt-6 space-y-2 rounded-md bg-ivory-muted p-4">
         <div className="flex justify-between text-sm">
-          <span className="text-charcoal/60">Illustrative annual return</span>
+          <span className="text-charcoal/60">Illustrative return ({term} mo)</span>
           <span className="font-medium text-charcoal">
-            {calc ? `${(calc.annualReturnRate * 100).toFixed(1)}%` : "—"}
+            {calc ? `${(calc.totalReturnRate * 100).toFixed(2)}%` : "—"}
           </span>
         </div>
         <div className="flex justify-between text-sm">
@@ -125,12 +122,21 @@ export function InvestmentCalculator({
             {calc ? `₦${calc.earnings.toLocaleString()}` : "—"}
           </span>
         </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-charcoal/60">Accrues about, per day</span>
+          <span className="font-medium text-charcoal">
+            {calc ? `₦${calc.dailyAccrual.toLocaleString()}` : "—"}
+          </span>
+        </div>
         <div className="flex justify-between border-t border-charcoal/10 pt-2 text-sm">
           <span className="font-semibold text-charcoal">Maturity value</span>
           <span className="font-display font-bold text-charcoal">
             {calc ? `₦${calc.maturityValue.toLocaleString()}` : "—"}
           </span>
         </div>
+        <p className="pt-1 text-[11px] text-charcoal/40">
+          Accrued return is paid at the end of the term.
+        </p>
       </div>
 
       <form action={createInvestmentAction}>

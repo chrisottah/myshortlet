@@ -12,8 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { INVESTMENT_CONFIG, getTierForMinInvestment, type TierId } from "@/lib/config/investment";
+import { cn } from "@/lib/utils";
 
-type SortOption = "newest" | "term_asc" | "term_desc" | "amount_asc" | "amount_desc";
+type SortOption = "newest" | "amount_asc" | "amount_desc";
 
 const STATUS_OPTIONS: { label: string; value: OpportunityStatus | "all" }[] = [
   { label: "All Statuses", value: "all" },
@@ -23,30 +25,21 @@ const STATUS_OPTIONS: { label: string; value: OpportunityStatus | "all" }[] = [
   { label: "Upcoming", value: "upcoming" },
 ];
 
-const TERM_OPTIONS = [
-  { label: "Any Term", value: "all" },
-  { label: "3 months", value: "3" },
-  { label: "6 months", value: "6" },
-  { label: "12 months", value: "12" },
-  { label: "18 months", value: "18" },
-  { label: "24 months", value: "24" },
-];
-
 const SORT_OPTIONS: { label: string; value: SortOption }[] = [
   { label: "Newest", value: "newest" },
-  { label: "Term: Short to Long", value: "term_asc" },
-  { label: "Term: Long to Short", value: "term_desc" },
   { label: "Min. Investment: Low to High", value: "amount_asc" },
   { label: "Min. Investment: High to Low", value: "amount_desc" },
 ];
 
 export function OpportunitiesGrid({
   opportunities,
+  coverImages = {},
 }: {
   opportunities: InvestmentOpportunity[];
+  coverImages?: Record<string, string>;
 }) {
+  const [tab, setTab] = useState<TierId | "all">("all");
   const [status, setStatus] = useState<string>("all");
-  const [term, setTerm] = useState<string>("all");
   const [sort, setSort] = useState<SortOption>("newest");
 
   const filtered = useMemo(() => {
@@ -55,17 +48,11 @@ export function OpportunitiesGrid({
     if (status !== "all") {
       results = results.filter((o) => o.status === status);
     }
-    if (term !== "all") {
-      results = results.filter((o) => o.termMonths === Number(term));
+    if (tab !== "all") {
+      results = results.filter((o) => getTierForMinInvestment(o.minInvestment).id === tab);
     }
 
     switch (sort) {
-      case "term_asc":
-        results.sort((a, b) => a.termMonths - b.termMonths);
-        break;
-      case "term_desc":
-        results.sort((a, b) => b.termMonths - a.termMonths);
-        break;
       case "amount_asc":
         results.sort((a, b) => a.minInvestment - b.minInvestment);
         break;
@@ -80,37 +67,62 @@ export function OpportunitiesGrid({
     }
 
     return results;
-  }, [opportunities, status, term, sort]);
+  }, [opportunities, tab, status, sort]);
 
   const resetFilters = () => {
+    setTab("all");
     setStatus("all");
-    setTerm("all");
     setSort("newest");
   };
 
+  const tierCount = (id: TierId) =>
+    opportunities.filter((o) => getTierForMinInvestment(o.minInvestment).id === id).length;
+
   return (
     <div className="mt-8">
+      {/* Tier tabs */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setTab("all")}
+          className={cn(
+            "cursor-pointer rounded-card border px-4 py-3 text-left transition-colors",
+            tab === "all"
+              ? "border-emerald bg-emerald-soft"
+              : "border-charcoal/15 bg-white hover:border-charcoal/30"
+          )}
+        >
+          <p className="text-sm font-semibold text-charcoal">All</p>
+          <p className="text-xs text-charcoal/50">{opportunities.length} opportunities</p>
+        </button>
+        {INVESTMENT_CONFIG.tiers.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={cn(
+              "cursor-pointer rounded-card border px-4 py-3 text-left transition-colors",
+              tab === t.id
+                ? "border-emerald bg-emerald-soft"
+                : "border-charcoal/15 bg-white hover:border-charcoal/30"
+            )}
+          >
+            <p className="text-sm font-semibold text-charcoal">{t.name}</p>
+            <p className="text-xs text-charcoal/50">
+              From ₦{t.minInvestment.toLocaleString()} · {tierCount(t.id)}
+            </p>
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 rounded-card border border-charcoal/10 bg-ivory-muted p-4">
+      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-card border border-charcoal/10 bg-ivory-muted p-4">
         <Select value={status} onValueChange={(v) => setStatus(v ?? "all")}>
           <SelectTrigger className="w-40 bg-white">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             {STATUS_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={term} onValueChange={(v) => setTerm(v ?? "all")}>
-          <SelectTrigger className="w-40 bg-white">
-            <SelectValue placeholder="Term" />
-          </SelectTrigger>
-          <SelectContent>
-            {TERM_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
@@ -131,7 +143,7 @@ export function OpportunitiesGrid({
           </SelectContent>
         </Select>
 
-        {(status !== "all" || term !== "all" || sort !== "newest") && (
+        {(tab !== "all" || status !== "all" || sort !== "newest") && (
           <Button variant="outline" size="sm" onClick={resetFilters}>
             Reset
           </Button>
@@ -142,14 +154,8 @@ export function OpportunitiesGrid({
         </span>
       </div>
 
-      {/* Grid */}
-      {filtered.length > 0 ? (
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((opp) => (
-            <OpportunityCard key={opp.id} opportunity={opp} />
-          ))}
-        </div>
-      ) : (
+      {/* Results */}
+      {filtered.length === 0 ? (
         <div className="mt-14 flex flex-col items-center justify-center rounded-card border border-dashed border-charcoal/20 py-16 text-center">
           <p className="font-display text-lg font-semibold text-charcoal">
             No opportunities match your filters
@@ -160,6 +166,43 @@ export function OpportunitiesGrid({
           <Button variant="outline" size="sm" className="mt-4" onClick={resetFilters}>
             Reset Filters
           </Button>
+        </div>
+      ) : tab === "all" ? (
+        <div className="mt-8 space-y-12">
+          {INVESTMENT_CONFIG.tiers.map((t) => {
+            const items = filtered.filter(
+              (o) => getTierForMinInvestment(o.minInvestment).id === t.id
+            );
+            if (items.length === 0) return null;
+            return (
+              <section key={t.id}>
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <h2 className="font-display text-2xl font-bold text-charcoal">{t.name}</h2>
+                    <p className="text-sm text-charcoal/60">{t.tagline}</p>
+                  </div>
+                  <p className="text-sm font-medium text-charcoal/60">
+                    From ₦{t.minInvestment.toLocaleString()}
+                  </p>
+                </div>
+                <div className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {items.map((opp) => (
+                    <OpportunityCard
+                      key={opp.id}
+                      opportunity={opp}
+                      coverImage={coverImages[opp.id]}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((opp) => (
+            <OpportunityCard key={opp.id} opportunity={opp} coverImage={coverImages[opp.id]} />
+          ))}
         </div>
       )}
     </div>

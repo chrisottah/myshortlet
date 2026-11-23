@@ -6,7 +6,10 @@ import { Hero } from "@/components/marketing/hero";
 import { OpportunityCard } from "@/components/marketing/opportunity-card";
 import { Button } from "@/components/ui/button";
 import { investmentService } from "@/lib/services/investment-service";
+import { propertyService } from "@/lib/services/property-service";
 import { TrendingUp, ShieldCheck, Wallet, ArrowRightLeft } from "lucide-react";
+import { getHeadlineReturn } from "@/lib/config/investment-engine";
+import { getPropertyCover } from "@/lib/property-images";
 
 const HOW_IT_WORKS = [
   {
@@ -38,6 +41,7 @@ export default function Home() {
     .slice(0, 3);
 
   const totalRaised = opportunities.reduce((sum, o) => sum + o.amountRaised, 0);
+  const headline = getHeadlineReturn();
 
   return (
     <>
@@ -71,8 +75,12 @@ export default function Home() {
                 <p className="text-sm text-charcoal/60">Investors Onboard (Demo)</p>
               </div>
               <div>
-                <p className="font-display text-2xl font-bold text-charcoal sm:text-3xl">18%</p>
-                <p className="text-sm text-charcoal/60">Avg. Illustrative Return (Demo)</p>
+                <p className="font-display text-2xl font-bold text-charcoal sm:text-3xl">
+                  {(headline.totalReturnRate * 100).toFixed(2)}%
+                </p>
+                <p className="text-sm text-charcoal/60">
+                  Illustrative Return, {headline.termMonths} Months (Demo)
+                </p>
               </div>
             </div>
           </div>
@@ -112,7 +120,11 @@ export default function Home() {
             </div>
             <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {featured.map((opp) => (
-                <OpportunityCard key={opp.id} opportunity={opp} />
+                <OpportunityCard
+                  key={opp.id}
+                  opportunity={opp}
+                  coverImage={getPropertyCover(propertyService.getById(opp.propertyId), opp.id)}
+                />
               ))}
             </div>
           </div>
@@ -122,11 +134,11 @@ export default function Home() {
         <section className="mx-auto max-w-7xl px-6 py-20">
           <div className="rounded-card bg-charcoal px-8 py-14 text-center sm:px-16">
             <h2 className="font-display text-3xl font-bold text-ivory">
-              Own a short-let property?
+              Own a property that suits short-let?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-ivory/70">
-              List your property with MyShortlet and get access to investor
-              capital to fund improvements, furnishing, or expansion.
+              Sell or lease it to MyShortlet. Tell our team about your property
+              and we&apos;ll get back to you directly.
             </p>
             <Link href="/partner/apply">
               <Button size="lg" className="mt-8 bg-emerald text-ivory hover:bg-emerald/90">

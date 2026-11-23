@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { HERO_IMAGE_URL } from "@/lib/mock-data/stock-images";
-import Image from "next/image";
+import { INVESTMENT_CONFIG } from "@/lib/config/investment";
 
 export function Hero() {
+  const fromAmount = `₦${INVESTMENT_CONFIG.minInvestmentDefault.toLocaleString("en-NG")}`;
+
   return (
     <section className="relative overflow-hidden bg-charcoal">
       <motion.div
@@ -39,9 +42,9 @@ export function Hero() {
             Put your money to work in short-let opportunities.
           </h1>
           <p className="mt-6 text-lg text-ivory/70">
-            Explore vetted short-let investment opportunities across
-            Nigeria and grow your capital with illustrative returns,
-            starting from ₦100,000.
+            Explore vetted short-let investment opportunities across Nigeria
+            and grow your capital with illustrative returns, starting from{" "}
+            {fromAmount}.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <Link href="/opportunities">

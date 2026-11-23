@@ -1,9 +1,10 @@
-// components/marketing/opportunity-card.tsx
 import Link from "next/link";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { InvestmentOpportunity } from "@/lib/types";
 import { getImageForId } from "@/lib/mock-data/stock-images";
-import Image from "next/image";
+import { getTierForMinInvestment } from "@/lib/config/investment";
+import { getHeadlineReturn, getTermRange } from "@/lib/config/investment-engine";
 
 const BADGE_LABELS: Record<string, string> = {
   featured: "Featured",
@@ -12,11 +13,20 @@ const BADGE_LABELS: Record<string, string> = {
   popular: "Popular",
 };
 
-export function OpportunityCard({ opportunity }: { opportunity: InvestmentOpportunity }) {
+export function OpportunityCard({
+  opportunity,
+  coverImage,
+}: {
+  opportunity: InvestmentOpportunity;
+  coverImage?: string;
+}) {
   const progress = Math.min(
     100,
     Math.round((opportunity.amountRaised / opportunity.targetAmount) * 100)
   );
+  const tier = getTierForMinInvestment(opportunity.minInvestment);
+  const headline = getHeadlineReturn();
+  const { min, max } = getTermRange();
 
   return (
     <Link
@@ -25,7 +35,7 @@ export function OpportunityCard({ opportunity }: { opportunity: InvestmentOpport
     >
       <div className="relative h-44 w-full overflow-hidden">
         <Image
-          src={getImageForId(opportunity.id)}
+          src={coverImage ?? getImageForId(opportunity.id)}
           alt={opportunity.title}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -39,6 +49,9 @@ export function OpportunityCard({ opportunity }: { opportunity: InvestmentOpport
             </Badge>
           ))}
         </div>
+        <span className="absolute right-3 top-3 z-10 rounded-full bg-charcoal/80 px-2.5 py-1 text-xs font-medium text-ivory">
+          {tier.name}
+        </span>
       </div>
 
       <div className="space-y-3 p-5">
@@ -56,7 +69,7 @@ export function OpportunityCard({ opportunity }: { opportunity: InvestmentOpport
           </div>
           <div className="flex justify-between text-xs text-charcoal/50">
             <span>{progress}% funded</span>
-            <span>{opportunity.termMonths} months</span>
+            <span>{min}–{max} months</span>
           </div>
         </div>
 
@@ -68,9 +81,11 @@ export function OpportunityCard({ opportunity }: { opportunity: InvestmentOpport
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-charcoal/50">Illustrative Return</p>
+            <p className="text-xs text-charcoal/50">
+              Illustrative Return ({headline.termMonths} mo)
+            </p>
             <p className="text-sm font-semibold text-emerald">
-              {(opportunity.illustrativeReturnRate * 100).toFixed(1)}%
+              {(headline.totalReturnRate * 100).toFixed(2)}%
             </p>
           </div>
         </div>

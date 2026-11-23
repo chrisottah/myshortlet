@@ -5,6 +5,7 @@ import { INVESTMENT_CONFIG } from "@/lib/config/investment";
 
 const now = new Date();
 const nowIso = now.toISOString();
+const RATE = INVESTMENT_CONFIG.defaultIllustrativeReturnRate;
 
 function daysFromNow(days: number): string {
   const d = new Date(now);
@@ -18,12 +19,12 @@ export const opportunities: InvestmentOpportunity[] = [
     propertyId: "prop_01",
     title: "The Manuela — Waterfront Apartment Opportunity",
     summary:
-      "Fund a share of this high-demand Lekki Phase 1 waterfront apartment and earn illustrative returns over a 12-month term.",
-    minInvestment: 100_000,
+      "Fund a share of this high-demand Lekki Phase 1 waterfront apartment and earn illustrative returns over your chosen term.",
+    minInvestment: 2_500_000,
     targetAmount: 40_000_000,
     amountRaised: 27_400_000,
     termMonths: 12,
-    illustrativeReturnRate: INVESTMENT_CONFIG.defaultIllustrativeReturnRate,
+    illustrativeReturnRate: RATE,
     status: "open",
     badges: ["featured", "popular"],
     openDate: daysFromNow(-20),
@@ -36,12 +37,12 @@ export const opportunities: InvestmentOpportunity[] = [
     propertyId: "prop_02",
     title: "Ivory Court — Ikoyi Residence Opportunity",
     summary:
-      "An elegant Ikoyi residence favored by executive travelers, offering a shorter 6-month illustrative term.",
-    minInvestment: 100_000,
+      "An elegant Ikoyi residence favored by executive travelers, with illustrative returns over your chosen term.",
+    minInvestment: 1_000_000,
     targetAmount: 25_000_000,
     amountRaised: 23_800_000,
     termMonths: 6,
-    illustrativeReturnRate: INVESTMENT_CONFIG.defaultIllustrativeReturnRate - 0.02,
+    illustrativeReturnRate: RATE,
     status: "almost_funded",
     badges: ["almost_funded"],
     openDate: daysFromNow(-35),
@@ -54,12 +55,12 @@ export const opportunities: InvestmentOpportunity[] = [
     propertyId: "prop_03",
     title: "Skyline Loft — VI Penthouse Opportunity",
     summary:
-      "A premium Victoria Island penthouse investment with panoramic views, structured over a 24-month term for higher illustrative returns.",
-    minInvestment: 250_000,
+      "A premium Victoria Island penthouse investment with panoramic views and illustrative returns over your chosen term.",
+    minInvestment: 2_500_000,
     targetAmount: 70_000_000,
     amountRaised: 18_500_000,
-    termMonths: 24,
-    illustrativeReturnRate: INVESTMENT_CONFIG.defaultIllustrativeReturnRate + 0.03,
+    termMonths: 12,
+    illustrativeReturnRate: RATE,
     status: "open",
     badges: ["featured"],
     openDate: daysFromNow(-10),
@@ -77,7 +78,7 @@ export const opportunities: InvestmentOpportunity[] = [
     targetAmount: 30_000_000,
     amountRaised: 9_200_000,
     termMonths: 12,
-    illustrativeReturnRate: INVESTMENT_CONFIG.defaultIllustrativeReturnRate,
+    illustrativeReturnRate: RATE,
     status: "open",
     badges: ["new"],
     openDate: daysFromNow(-3),
@@ -90,12 +91,12 @@ export const opportunities: InvestmentOpportunity[] = [
     propertyId: "prop_05",
     title: "Coral Studio — Ajah Opportunity",
     summary:
-      "A lower entry-point opportunity in the fast-growing Ajah corridor, ideal for first-time investors with a shorter 3-month term.",
+      "A lower entry-point opportunity in the fast-growing Ajah corridor, ideal for first-time investors.",
     minInvestment: 100_000,
     targetAmount: 10_000_000,
     amountRaised: 6_700_000,
     termMonths: 3,
-    illustrativeReturnRate: INVESTMENT_CONFIG.defaultIllustrativeReturnRate - 0.04,
+    illustrativeReturnRate: RATE,
     status: "open",
     badges: ["new", "popular"],
     openDate: daysFromNow(-8),
@@ -108,12 +109,12 @@ export const opportunities: InvestmentOpportunity[] = [
     propertyId: "prop_08",
     title: "Lakeside Duplex — Ikeja Opportunity",
     summary:
-      "A serene duplex near the Ikeja golf course with strong repeat corporate bookings, offered on an 18-month term.",
-    minInvestment: 150_000,
+      "A serene duplex near the Ikeja golf course with strong repeat corporate bookings.",
+    minInvestment: 1_000_000,
     targetAmount: 28_000_000,
     amountRaised: 28_000_000,
-    termMonths: 18,
-    illustrativeReturnRate: INVESTMENT_CONFIG.defaultIllustrativeReturnRate + 0.015,
+    termMonths: 6,
+    illustrativeReturnRate: RATE,
     status: "funded",
     badges: [],
     openDate: daysFromNow(-60),
