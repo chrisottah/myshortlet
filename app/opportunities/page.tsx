@@ -1,3 +1,4 @@
+// app/opportunities/page.tsx
 import { Navbar } from "@/components/marketing/navbar";
 import { Footer } from "@/components/marketing/footer";
 import { OpportunitiesGrid } from "@/components/marketing/opportunities-grid";
@@ -14,9 +15,9 @@ export const metadata = {
 };
 
 export default async function OpportunitiesPage() {
-  const opportunities = investmentService.getOpportunities();
+  const opportunities = await investmentService.getOpportunities();
 
-  // Batch-fetch every property involved, in one query, instead of N getByIds.
+  // Batch-fetch every property involved, once.
   const propertyIds = Array.from(new Set(opportunities.map((o) => o.propertyId)));
   const properties = await Promise.all(propertyIds.map((id) => propertyService.getById(id)));
   const propertyById = new Map(properties.filter(Boolean).map((p) => [p!.id, p!]));

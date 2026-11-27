@@ -14,7 +14,7 @@ export default async function PartnerOverviewPage() {
   const owner = user as PropertyOwner;
 
   const properties = await propertyService.getByOwnerId(owner.id);
-  const allOpportunities = investmentService.getOpportunities();
+  const allOpportunities = await investmentService.getOpportunities();
 
   const pendingStatuses = new Set(["submitted", "under_review", "changes_requested"]);
   const pendingCount = properties.filter((p) => pendingStatuses.has(p.status)).length;

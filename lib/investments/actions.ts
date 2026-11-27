@@ -15,7 +15,7 @@ export async function withdrawInvestmentAction(formData: FormData) {
     redirect("/login");
   }
 
-  const investment = investmentService.getInvestmentById(investmentId);
+  const investment = await investmentService.getInvestmentById(investmentId);
   if (!investment || investment.investorId !== user.id) {
     redirect("/dashboard/investments?error=Investment+not+found");
   }
@@ -27,7 +27,7 @@ export async function withdrawInvestmentAction(formData: FormData) {
 
   let errorMessage: string | null = null;
   try {
-    investmentService.markWithdrawn(investmentId);
+    await investmentService.markWithdrawn(investmentId);
   } catch (err) {
     errorMessage = err instanceof Error ? err.message : "Withdrawal failed";
   }
@@ -38,8 +38,6 @@ export async function withdrawInvestmentAction(formData: FormData) {
 
   redirect("/dashboard/investments?success=Investment+withdrawn+successfully");
 }
-
-// ...existing imports and withdrawInvestmentAction stay as-is
 
 export async function createInvestmentAction(formData: FormData) {
   const opportunityId = formData.get("opportunityId");
@@ -81,7 +79,7 @@ export async function createInvestmentAction(formData: FormData) {
 
   let errorMessage: string | null = null;
   try {
-    investmentService.createInvestment({
+    await investmentService.createInvestment({
       investorId: user.id,
       opportunityId,
       amount,

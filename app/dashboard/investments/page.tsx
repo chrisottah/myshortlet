@@ -7,16 +7,18 @@ export default async function InvestmentsPage() {
   const user = await getCurrentUser();
 
   const investments = user
-    ? investmentService.getInvestmentsByInvestor(user.id)
+    ? await investmentService.getInvestmentsByInvestor(user.id)
     : [];
 
-  const investmentsWithTitle = investments.map((inv) => {
-    const opportunity = investmentService.getOpportunityById(inv.opportunityId);
-    return {
-      ...inv,
-      opportunityTitle: opportunity?.title ?? "Unknown opportunity",
-    };
-  });
+  const investmentsWithTitle = await Promise.all(
+    investments.map(async (inv) => {
+      const opportunity = await investmentService.getOpportunityById(inv.opportunityId);
+      return {
+        ...inv,
+        opportunityTitle: opportunity?.title ?? "Unknown opportunity",
+      };
+    })
+  );
 
   return (
     <Suspense fallback={null}>

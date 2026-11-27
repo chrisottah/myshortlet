@@ -1,159 +1,181 @@
-// app/page.tsx
+// app/dashboard/page.tsx
 import Link from "next/link";
-import { Navbar } from "@/components/marketing/navbar";
-import { Footer } from "@/components/marketing/footer";
-import { Hero } from "@/components/marketing/hero";
-import { OpportunityCard } from "@/components/marketing/opportunity-card";
-import { Button } from "@/components/ui/button";
+import { Wallet, TrendingUp, PiggyBank, Layers } from "lucide-react";
+import { getCurrentUser } from "@/lib/auth/session";
+import { walletService } from "@/lib/services/wallet-service";
 import { investmentService } from "@/lib/services/investment-service";
-import { propertyService } from "@/lib/services/property-service";
-import { TrendingUp, ShieldCheck, Wallet, ArrowRightLeft } from "lucide-react";
-import { getHeadlineReturn } from "@/lib/config/investment-engine";
-import { getPropertyCover } from "@/lib/property-images";
+import { transactionService } from "@/lib/services/transaction-service";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrencyKobo } from "@/lib/money";
 
-const HOW_IT_WORKS = [
-  {
-    icon: ShieldCheck,
-    title: "We vet the property",
-    description:
-      "Every listing goes through a review of its location, financials, and demand before it's opened for investment.",
-  },
-  {
-    icon: TrendingUp,
-    title: "You choose an opportunity",
-    description:
-      "Browse vetted short-let opportunities and pick an amount and term that fits your goals.",
-  },
-  {
-    icon: Wallet,
-    title: "Your capital gets to work",
-    description:
-      "Funds are pooled toward the opportunity, and your investment is tracked from day one.",
-  },
-  {
-    icon: ArrowRightLeft,
-    title: "Receive returns at maturity",
-    description:
-      "At the end of the term, withdraw your capital plus illustrative earnings, or reinvest.",
-  },
-];
+export default async function DashboardOverviewPage() {
+  const user = await getCurrentUser();
+  if (!user) return null;
 
-export default async function Home() {
-  const opportunities = investmentService.getOpportunities();
-  const featured = opportunities
-    .filter((o) => o.badges.includes("featured") || o.badges.includes("popular"))
-    .slice(0, 3);
+  const wallet = await walletService.getWalletByUserId(user.id);
+  const investments = await investmentService.getInvestmentsByInvestor(user.id);
+  const recentTransactions = (await transactionService.getByUserId(user.id)).slice(0, 5);
 
-  // Batch-fetch every property involved, once.
-  const propertyIds = Array.from(new Set(featured.map((o) => o.propertyId)));
-  const properties = await Promise.all(propertyIds.map((id) => propertyService.getById(id)));
-  const propertyById = new Map(properties.filter(Boolean).map((p) => [p!.id, p!]));
+  const activeInvestments = investments.filter(
+    (inv) => inv.status === "active" || inv.status === "approaching_maturity"
+  );
 
-  const totalRaised = opportunities.reduce((sum, o) => sum + o.amountRaised, 0);
-  const headline = getHeadlineReturn();
+  const recentInvestments = await Promise.all(
+    [...investments]
+      .sort((a, b) => new Date(b.investedAt).getTime() - new Date(a.investedAt).getTime())
+      .slice(0, 4)
+      .map(async (inv) => ({
+        investment: inv,
+        opportunity: await investmentService.getOpportunityById(inv.opportunityId),
+      }))
+  );
+
+  const availableBalance = wallet?.availableBalance ?? 0n;
+  const investedBalance = wallet?.investedBalance ?? 0n;
+  const earningsBalance = wallet?.earningsBalance ?? 0n;
+  const totalBalance = availableBalance + investedBalance + earningsBalance;
 
   return (
-    <>
-      <Navbar />
+    <div>
+      <div>
+        <h1 className="font-display text-2xl font-semibold text-charcoal">
+          Welcome back, {user.firstName}
+        </h1>
+        <p className="mt-1 text-sm text-charcoal/60">
+          Here is a snapshot of your portfolio.
+        </p>
+      </div>
 
-      <main>
-        <Hero />
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Available Balance"
+          value={formatCurrencyKobo(availableBalance)}
+          icon={Wallet}
+          hint="Ready to invest or withdraw"
+        />
+        <StatCard
+          label="Invested Balance"
+          value={formatCurrencyKobo(investedBalance)}
+          icon={Layers}
+          hint={`${activeInvestments.length} active investment${activeInvestments.length === 1 ? "" : "s"}`}
+        />
+        <StatCard
+          label="Earnings Balance"
+          value={formatCurrencyKobo(earningsBalance)}
+          icon={PiggyBank}
+          hint="Accrued to date"
+        />
+        <StatCard
+          label="Total Portfolio Value"
+          value={formatCurrencyKobo(totalBalance)}
+          icon={TrendingUp}
+          hint="Across all balances"
+        />
+      </div>
 
-        <section className="border-b border-charcoal/10 bg-ivory-muted">
-          <div className="mx-auto max-w-7xl px-6 py-10">
-            <p className="mb-6 text-xs font-semibold uppercase tracking-wide text-charcoal/40">
-              Demo Platform Statistics
+      {/* Recent investments */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold text-charcoal">
+            Recent Investments
+          </h2>
+          <Link
+            href="/dashboard/investments"
+            className="text-sm font-medium text-emerald hover:underline"
+          >
+            View all
+          </Link>
+        </div>
+
+        {recentInvestments.length === 0 ? (
+          <div className="mt-4 rounded-card border border-dashed border-charcoal/20 bg-white p-8 text-center">
+            <p className="text-sm text-charcoal/60">
+              You have not made any investments yet.
             </p>
-            <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-              <div>
-                <p className="font-display text-2xl font-bold text-charcoal sm:text-3xl">
-                  ₦{(totalRaised / 1_000_000).toFixed(0)}M+
-                </p>
-                <p className="text-sm text-charcoal/60">Capital Raised (Demo)</p>
-              </div>
-              <div>
-                <p className="font-display text-2xl font-bold text-charcoal sm:text-3xl">
-                  {opportunities.length}
-                </p>
-                <p className="text-sm text-charcoal/60">Active Opportunities (Demo)</p>
-              </div>
-              <div>
-                <p className="font-display text-2xl font-bold text-charcoal sm:text-3xl">8+</p>
-                <p className="text-sm text-charcoal/60">Investors Onboard (Demo)</p>
-              </div>
-              <div>
-                <p className="font-display text-2xl font-bold text-charcoal sm:text-3xl">
-                  {(headline.totalReturnRate * 100).toFixed(2)}%
-                </p>
-                <p className="text-sm text-charcoal/60">
-                  Illustrative Return, {headline.termMonths} Months (Demo)
-                </p>
-              </div>
-            </div>
+            <Link
+              href="/opportunities"
+              className="mt-3 inline-block text-sm font-medium text-emerald hover:underline"
+            >
+              Browse opportunities
+            </Link>
           </div>
-        </section>
-
-        <section className="mx-auto max-w-7xl px-6 py-20">
-          <h2 className="font-display text-3xl font-bold text-charcoal">How It Works</h2>
-          <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {HOW_IT_WORKS.map((step, i) => (
-              <div key={step.title}>
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-soft text-emerald">
-                  <step.icon className="h-5 w-5" />
+        ) : (
+          <div className="mt-4 overflow-hidden rounded-card border border-charcoal/10 bg-white">
+            {recentInvestments.map(({ investment, opportunity }) => (
+              <div
+                key={investment.id}
+                className="flex items-center justify-between border-b border-charcoal/5 px-5 py-4 last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-charcoal">
+                    {opportunity?.title ?? "Opportunity"}
+                  </p>
+                  <p className="text-xs text-charcoal/50">
+                    Invested {formatDate(investment.investedAt)} · Matures{" "}
+                    {formatDate(investment.maturityDate)}
+                  </p>
                 </div>
-                <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-charcoal/40">
-                  Step {i + 1}
-                </p>
-                <h3 className="mt-1 font-display text-lg font-semibold text-charcoal">
-                  {step.title}
-                </h3>
-                <p className="mt-2 text-sm text-charcoal/60">{step.description}</p>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-charcoal">
+                    {formatCurrency(investment.amount)}
+                  </p>
+                  <span className="inline-block rounded-full bg-emerald/10 px-2 py-0.5 text-[10px] font-medium capitalize text-emerald">
+                    {investment.status.replace("_", " ")}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
-        </section>
+        )}
+      </div>
 
-        <section className="bg-ivory-muted py-20">
-          <div className="mx-auto max-w-7xl px-6">
-            <div className="flex items-end justify-between">
-              <h2 className="font-display text-3xl font-bold text-charcoal">
-                Featured Opportunities
-              </h2>
-              <Link href="/opportunities" className="text-sm font-medium text-emerald hover:underline">
-                View all →
-              </Link>
-            </div>
-            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {featured.map((opp) => (
-                <OpportunityCard
-                  key={opp.id}
-                  opportunity={opp}
-                  coverImage={getPropertyCover(propertyById.get(opp.propertyId), opp.id)}
-                />
-              ))}
-            </div>
+      {/* Recent transactions */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold text-charcoal">
+            Recent Transactions
+          </h2>
+          <Link
+            href="/dashboard/transactions"
+            className="text-sm font-medium text-emerald hover:underline"
+          >
+            View all
+          </Link>
+        </div>
+
+        {recentTransactions.length === 0 ? (
+          <div className="mt-4 rounded-card border border-dashed border-charcoal/20 bg-white p-8 text-center">
+            <p className="text-sm text-charcoal/60">No transactions yet.</p>
           </div>
-        </section>
-
-        <section className="mx-auto max-w-7xl px-6 py-20">
-          <div className="rounded-card bg-charcoal px-8 py-14 text-center sm:px-16">
-            <h2 className="font-display text-3xl font-bold text-ivory">
-              Own a property that suits short-let?
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-ivory/70">
-              Sell or lease it to MyShortlet. Tell our team about your property
-              and we&apos;ll get back to you directly.
-            </p>
-            <Link href="/partner/apply">
-              <Button size="lg" className="mt-8 bg-emerald text-ivory hover:bg-emerald/90">
-                Submit Your Property
-              </Button>
-            </Link>
+        ) : (
+          <div className="mt-4 overflow-hidden rounded-card border border-charcoal/10 bg-white">
+            {recentTransactions.map((txn) => (
+              <div
+                key={txn.id}
+                className="flex items-center justify-between border-b border-charcoal/5 px-5 py-4 last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-charcoal capitalize">
+                    {txn.type}
+                  </p>
+                  <p className="truncate text-xs text-charcoal/50">
+                    {txn.description}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-charcoal">
+                    {formatCurrency(txn.amount)}
+                  </p>
+                  <p className="text-xs text-charcoal/50">
+                    {formatDate(txn.createdAt)}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
-        </section>
-      </main>
-
-      <Footer />
-    </>
+        )}
+      </div>
+    </div>
   );
 }

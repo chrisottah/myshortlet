@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 import Link from "next/link";
 import { Wallet, TrendingUp, PiggyBank, Layers } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -6,32 +7,29 @@ import { investmentService } from "@/lib/services/investment-service";
 import { transactionService } from "@/lib/services/transaction-service";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { formatCurrencyKobo, koboToNaira } from "@/lib/money";
+import { formatCurrencyKobo } from "@/lib/money";
 
 export default async function DashboardOverviewPage() {
   const user = await getCurrentUser();
-  if (!user) {
-    // The proxy should have caught this; defensive.
-    return null;
-  }
+  if (!user) return null;
 
-  // B0.5: wallet is DB-backed. Investments/transactions still use mock
-  // services and will be ported in B2/B3.
   const wallet = await walletService.getWalletByUserId(user.id);
-  const investments = investmentService.getInvestmentsByInvestor(user.id);
+  const investments = await investmentService.getInvestmentsByInvestor(user.id);
   const recentTransactions = (await transactionService.getByUserId(user.id)).slice(0, 5);
 
   const activeInvestments = investments.filter(
     (inv) => inv.status === "active" || inv.status === "approaching_maturity"
   );
 
-  const recentInvestments = [...investments]
-    .sort((a, b) => new Date(b.investedAt).getTime() - new Date(a.investedAt).getTime())
-    .slice(0, 4)
-    .map((inv) => ({
-      investment: inv,
-      opportunity: investmentService.getOpportunityById(inv.opportunityId),
-    }));
+  const recentInvestments = await Promise.all(
+    [...investments]
+      .sort((a, b) => new Date(b.investedAt).getTime() - new Date(a.investedAt).getTime())
+      .slice(0, 4)
+      .map(async (inv) => ({
+        investment: inv,
+        opportunity: await investmentService.getOpportunityById(inv.opportunityId),
+      }))
+  );
 
   const availableBalance = wallet?.availableBalance ?? 0n;
   const investedBalance = wallet?.investedBalance ?? 0n;
@@ -76,7 +74,7 @@ export default async function DashboardOverviewPage() {
         />
       </div>
 
-      {/* Recent investments — still mock, ported in B2/B3 */}
+      {/* Recent investments */}
       <div className="mt-8">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-charcoal">
@@ -132,7 +130,7 @@ export default async function DashboardOverviewPage() {
         )}
       </div>
 
-      {/* Recent transactions — still mock, ported in B1 continuation */}
+      {/* Recent transactions */}
       <div className="mt-8">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-charcoal">

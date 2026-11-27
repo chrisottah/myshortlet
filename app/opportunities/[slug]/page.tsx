@@ -26,8 +26,8 @@ const BADGE_LABELS: Record<string, string> = {
 
 const pct = (rate: number) => `${(rate * 100).toFixed(2)}%`;
 
-export function generateStaticParams() {
-  const opportunities = investmentService.getOpportunities();
+export async function generateStaticParams() {
+  const opportunities = await investmentService.getOpportunities();
   return opportunities.map((o) => ({ slug: o.id }));
 }
 
@@ -40,7 +40,7 @@ export default async function OpportunityDetailPage({
 }) {
   const { slug } = await params;
   const { error, success } = await searchParams;
-  const opportunity = investmentService.getOpportunityById(slug);
+  const opportunity = await investmentService.getOpportunityById(slug);
   if (!opportunity) notFound();
 
   const property = await propertyService.getById(opportunity.propertyId);

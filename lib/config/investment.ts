@@ -77,6 +77,7 @@ export const INVESTMENT_CONFIG = {
   tiers: TIERS,
   maxImagesPerProperty: 10,
   approachingMaturityWindowDays: 14,
+    almostFundedThresholdPct: 95,
 
   // Derived values, kept so older imports keep working.
   minInvestmentDefault: TIERS[0].minInvestment,

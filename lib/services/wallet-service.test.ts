@@ -1,18 +1,36 @@
+// lib/services/wallet-service.test.ts
 import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "@/lib/db";
 import { walletService } from "./wallet-service";
-import { ensureTestUser, cleanupTestUser } from "@/lib/test-helpers";
+import { ensureTestUser } from "@/lib/test-helpers";
 
 const TEST_USER = "test_wallet_user_01";
 
 describe("walletService", () => {
-   beforeEach(async () => {
-    await cleanupTestUser(TEST_USER);
+  beforeEach(async () => {
+    // Inline, ordered cleanup — entries → transactions → accounts → wallet → user.
+    await prisma.ledgerEntry.deleteMany({
+      where: { account: { userId: TEST_USER } },
+    });
+    await prisma.ledgerTransaction.deleteMany({
+      where: { entries: { some: { account: { userId: TEST_USER } } } },
+    });
+    await prisma.ledgerAccount.deleteMany({ where: { userId: TEST_USER } });
+    await prisma.wallet.deleteMany({ where: { userId: TEST_USER } });
+    await prisma.user.deleteMany({ where: { id: TEST_USER } });
+
+    // Also purge any stray test.* rows from prior failed runs.
+    await prisma.ledgerEntry.deleteMany({
+      where: { transaction: { reference: { startsWith: "test." } } },
+    });
+    await prisma.ledgerTransaction.deleteMany({
+      where: { reference: { startsWith: "test." } },
+    });
+
     await ensureTestUser(TEST_USER);
   });
 
   it("creditAvailable credits once and creates the wallet + ledger accounts", async () => {
-    // Bootstrap: the createWallet() path creates the wallet row and the four user accounts.
     await walletService.createWallet(TEST_USER);
 
     await walletService.creditAvailable(TEST_USER, 1_000_000n, {
@@ -23,7 +41,7 @@ describe("walletService", () => {
     const w = await walletService.getWalletByUserId(TEST_USER);
     expect(w?.availableBalance).toBe(1_000_000n);
 
-    // Reconciliation
+    // Reconciliation: sum of this user's ledger entries should equal the wallet balance.
     const accounts = await prisma.ledgerAccount.findMany({ where: { userId: TEST_USER } });
     const ids = accounts.map((a) => a.id);
     const entries = await prisma.ledgerEntry.findMany({ where: { accountId: { in: ids } } });
@@ -60,9 +78,6 @@ describe("walletService", () => {
     });
 
     const w = await walletService.getWalletByUserId(TEST_USER);
-    // available: 1_000_000 → 0 (credited invested) → +1_200_000 (maturity) = 1_200_000
-    // invested: 0 → 1_000_000 → 0
-    // earnings: 0 → 0 (nothing credited; earnings would come from creditEarnings before this)
     expect(w?.availableBalance).toBe(1_200_000n);
     expect(w?.investedBalance).toBe(0n);
   });

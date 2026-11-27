@@ -11,7 +11,7 @@ export default async function PartnerPropertiesPage() {
   const owner = user as PropertyOwner;
 
   const properties = await propertyService.getByOwnerId(owner.id);
-  const allOpportunities = investmentService.getOpportunities();
+  const allOpportunities = await investmentService.getOpportunities();
 
   const propertiesWithOpportunity = properties.map((p) => ({
     property: p,

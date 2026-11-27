@@ -2,23 +2,39 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "@/lib/db";
 import { postLedgerTransactionStandalone } from "./post";
 import { ACCOUNT } from "./accounts";
-import { ensureTestUser, cleanupTestUser, purgeTestLedger } from "@/lib/test-helpers";
+import { ensureTestUser } from "@/lib/test-helpers";
 
 const TEST_USER = "test_ledger_user_01";
-const SUFFIX = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const ref = (name: string) => `test.post.${SUFFIX}.${name}`;
 
 describe("postLedgerTransaction", () => {
   beforeEach(async () => {
-    await purgeTestLedger();
-    await cleanupTestUser(TEST_USER);
+    // Tear down completely: entries → transactions → accounts → wallet → user.
+    // Doing it inline (not via cleanupTestUser) so the test is self-contained
+    // and can't be broken by a helper whose semantics drift.
+    await prisma.ledgerEntry.deleteMany({ where: { account: { userId: TEST_USER } } });
+    await prisma.ledgerTransaction.deleteMany({
+      where: { entries: { some: { account: { userId: TEST_USER } } } },
+    });
+    await prisma.ledgerAccount.deleteMany({ where: { userId: TEST_USER } });
+    await prisma.wallet.deleteMany({ where: { userId: TEST_USER } });
+    await prisma.user.deleteMany({ where: { id: TEST_USER } });
+
+    // Also purge stray test.* ledger rows (from prior failed runs).
+    await prisma.ledgerEntry.deleteMany({
+      where: { transaction: { reference: { startsWith: "test." } } },
+    });
+    await prisma.ledgerTransaction.deleteMany({
+      where: { reference: { startsWith: "test." } },
+    });
+
+    // Fresh user for this test.
     await ensureTestUser(TEST_USER);
   });
 
   it("rejects unbalanced entries", async () => {
     await expect(
       postLedgerTransactionStandalone({
-        reference: ref("unbalanced"),
+        reference: "test.post.unbalanced",
         kind: "test",
         entries: [
           { code: ACCOUNT.DEPOSITS_DESIGNATED, amountKobo: -100n },
@@ -30,7 +46,7 @@ describe("postLedgerTransaction", () => {
 
   it("posts balanced entries and updates the cached wallet", async () => {
     await postLedgerTransactionStandalone({
-      reference: ref("ok"),
+      reference: "test.post.ok",
       kind: "test",
       entries: [
         { code: ACCOUNT.DEPOSITS_DESIGNATED, amountKobo: -1_000_000n },
@@ -41,7 +57,7 @@ describe("postLedgerTransaction", () => {
     expect(wallet?.availableBalance).toBe(1_000_000n);
 
     const sum = await prisma.ledgerEntry.aggregate({
-      where: { transaction: { reference: ref("ok") } },
+      where: { transaction: { reference: "test.post.ok" } },
       _sum: { amountKobo: true },
     });
     expect(sum._sum.amountKobo).toBe(0n);
@@ -49,7 +65,7 @@ describe("postLedgerTransaction", () => {
 
   it("reconciliation invariant: cached = sum of ledger entries", async () => {
     await postLedgerTransactionStandalone({
-      reference: ref("rec1"),
+      reference: "test.post.rec1",
       kind: "test",
       entries: [
         { code: ACCOUNT.DEPOSITS_DESIGNATED, amountKobo: -5_000_000n },
@@ -57,7 +73,7 @@ describe("postLedgerTransaction", () => {
       ],
     });
     await postLedgerTransactionStandalone({
-      reference: ref("rec2"),
+      reference: "test.post.rec2",
       kind: "test",
       entries: [
         { code: ACCOUNT.WALLET_AVAILABLE, userId: TEST_USER, amountKobo: -2_000_000n },

@@ -18,8 +18,8 @@ export default async function PropertyDetailPage({
   const property = await propertyService.getById(id);
   if (!property || property.ownerId !== owner.id) notFound();
 
-  const opportunity =
-    investmentService.getOpportunities().find((o) => o.propertyId === property.id) ?? null;
+  const allOpportunities = await investmentService.getOpportunities();
+  const opportunity = allOpportunities.find((o) => o.propertyId === property.id) ?? null;
 
   return <PropertyDetailClient property={property} opportunity={opportunity} />;
 }

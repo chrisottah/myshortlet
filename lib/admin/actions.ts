@@ -141,9 +141,6 @@ export async function createOpportunityForProperty(propertyId: string, formData:
   const maxInvestmentRaw = formData.get("maxInvestment");
   const maxInvestment = maxInvestmentRaw ? Number(maxInvestmentRaw) : undefined;
   const targetAmount = Number(formData.get("targetAmount"));
-  const termMonths = Number(formData.get("termMonths"));
-  const illustrativeReturnRateRaw = Number(formData.get("illustrativeReturnRate"));
-  const illustrativeReturnRate = illustrativeReturnRateRaw / 100;
   const openDate = String(formData.get("openDate") ?? "");
   const closeDate = String(formData.get("closeDate") ?? "");
 
@@ -152,21 +149,19 @@ export async function createOpportunityForProperty(propertyId: string, formData:
     !summary ||
     !openDate ||
     !closeDate ||
-    [minInvestment, targetAmount, termMonths, illustrativeReturnRateRaw].some((n) => Number.isNaN(n))
+    [minInvestment, targetAmount].some((n) => Number.isNaN(n))
   ) {
     redirect(`/admin/properties/${propertyId}/list?error=Please%20fill%20in%20all%20fields`);
   }
 
   try {
-    const opportunity = investmentService.createOpportunity({
+    const opportunity = await investmentService.createOpportunity({
       propertyId,
       title,
       summary,
       minInvestment,
       maxInvestment,
       targetAmount,
-      termMonths,
-      illustrativeReturnRate,
       openDate: new Date(openDate).toISOString(),
       closeDate: new Date(closeDate).toISOString(),
     });
@@ -179,7 +174,7 @@ export async function createOpportunityForProperty(propertyId: string, formData:
       action: "opportunity.created",
       targetType: "property",
       targetId: propertyId,
-      metadata: { opportunityId: opportunity.id, targetAmount, termMonths },
+      metadata: { opportunityId: opportunity.id, targetAmount },
     });
   } catch {
     redirect(`/admin/properties/${propertyId}/list?error=Could%20not%20create%20opportunity`);
