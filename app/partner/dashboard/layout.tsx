@@ -16,7 +16,7 @@ export default async function PartnerDashboardLayout({
   }
 
   const owner = user as PropertyOwner;
-  const properties = propertyService.getByOwnerId(owner.id);
+  const properties = await propertyService.getByOwnerId(owner.id);
 
   return (
     <PartnerDashboardShell user={owner} properties={properties}>

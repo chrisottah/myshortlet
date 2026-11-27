@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { propertyService } from "@/lib/services/property-service";
-import type { PropertyFinancials } from "@/lib/types";
+import { nairaToKobo } from "@/lib/money";
 
 export async function resubmitProperty(propertyId: string, formData: FormData) {
   const user = await getCurrentUser();
@@ -11,7 +11,7 @@ export async function resubmitProperty(propertyId: string, formData: FormData) {
     redirect("/login");
   }
 
-  const property = propertyService.getById(propertyId);
+  const property = await propertyService.getById(propertyId);
   if (!property || property.ownerId !== user.id) {
     redirect("/partner/dashboard/properties?error=Property%20not%20found");
   }
@@ -26,30 +26,42 @@ export async function resubmitProperty(propertyId: string, formData: FormData) {
   const occupancyRateEstimate = Number(formData.get("occupancyRateEstimate"));
   const operatingCostEstimate = Number(formData.get("operatingCostEstimate"));
 
-  if (!title || !description || [bedrooms, bathrooms, maxGuests, acquisitionCost, estimatedAnnualRevenue, occupancyRateEstimate, operatingCostEstimate].some((n) => Number.isNaN(n))) {
-    redirect(`/partner/dashboard/properties/${propertyId}?error=Please%20fill%20in%20all%20fields`);
+  if (
+    !title ||
+    !description ||
+    [
+      bedrooms,
+      bathrooms,
+      maxGuests,
+      acquisitionCost,
+      estimatedAnnualRevenue,
+      occupancyRateEstimate,
+      operatingCostEstimate,
+    ].some((n) => Number.isNaN(n))
+  ) {
+    redirect(
+      `/partner/dashboard/properties/${propertyId}?error=Please%20fill%20in%20all%20fields`
+    );
   }
 
-  const financials: PropertyFinancials = {
-    acquisitionCost,
-    estimatedAnnualRevenue,
-    occupancyRateEstimate,
-    operatingCostEstimate,
-  };
-
   try {
-    propertyService.updateProperty(propertyId, {
+    await propertyService.updateProperty(propertyId, {
       title,
       description,
       bedrooms,
       bathrooms,
       maxGuests,
-      financials,
+      acquisitionCostKobo: nairaToKobo(acquisitionCost),
+      estimatedAnnualRevenueKobo: nairaToKobo(estimatedAnnualRevenue),
+      occupancyRateEstimate,
+      operatingCostEstimateKobo: nairaToKobo(operatingCostEstimate),
     });
-    propertyService.updateStatus(propertyId, "submitted");
+    await propertyService.updateStatus(propertyId, "submitted");
   } catch {
     redirect(`/partner/dashboard/properties/${propertyId}?error=Could%20not%20resubmit`);
   }
 
-  redirect(`/partner/dashboard/properties/${propertyId}?success=Resubmitted%20for%20review`);
+  redirect(
+    `/partner/dashboard/properties/${propertyId}?success=Resubmitted%20for%20review`
+  );
 }

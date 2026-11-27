@@ -13,7 +13,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { User } from "@/lib/types";
+import type { SessionUser } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/auth/actions";
 
 const NAV_LINKS = [
@@ -25,11 +25,11 @@ const NAV_LINKS = [
   { label: "FAQ", href: "/faq" },
 ];
 
-function initials(user: User) {
+function initials(user: SessionUser) {
   return `${user.firstName[0] ?? ""}${user.lastName[0] ?? ""}`.toUpperCase();
 }
 
-export function NavbarClient({ user }: { user: User | null }) {
+export function NavbarClient({ user }: { user: SessionUser | null }) {
   const [open, setOpen] = useState(false);
 
   return (

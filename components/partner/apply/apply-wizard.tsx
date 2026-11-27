@@ -14,8 +14,7 @@ import {
   EMPTY_APPLICATION,
   PropertyApplicationData,
 } from "@/lib/types/property-application";
-import type { Property } from "@/lib/types/property";
-import { propertyService } from "@/lib/services/property-service";
+import { submitPropertyOffer } from "@/lib/properties/partner-actions";
 import { CheckCircle2 } from "lucide-react";
 
 interface ApplyWizardProps {
@@ -87,38 +86,35 @@ export function ApplyWizard({ ownerId }: ApplyWizardProps) {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const property = propertyService.submitProperty({
-        ownerId,
+      // Map form → server action input.
+      // For now the form still collects `requestedFundingAmount`; per the doc
+      // (§9.1) this becomes a sell/lease form at B7. Bridge for now:
+      // treat the requested amount as the ask.
+      await submitPropertyOffer({
         title: data.title,
         description: data.description,
-        type: data.propertyType as Property["type"],
-        location: {
-          countryId: data.countryId,
-          regionId: data.regionId,
-          cityId: data.cityId,
-          address: data.addressLine,
-        },
+        propertyType: data.propertyType as
+          | "apartment"
+          | "villa"
+          | "townhouse"
+          | "studio"
+          | "penthouse",
+        countryId: data.countryId,
+        regionId: data.regionId,
+        cityId: data.cityId,
+        addressLine: data.addressLine,
         bedrooms: data.bedrooms,
         bathrooms: data.bathrooms,
         maxGuests: data.maxGuests,
         amenities: data.amenities,
-        images: [],
-        financials: {
-          acquisitionCost: data.acquisitionCost,
-          estimatedAnnualRevenue: data.estimatedAnnualRevenue,
-          occupancyRateEstimate: data.occupancyRateEstimate,
-          operatingCostEstimate: data.operatingCostEstimate,
-        },
+        acquisitionCost: data.acquisitionCost,
+        estimatedAnnualRevenue: data.estimatedAnnualRevenue,
+        occupancyRateEstimate: data.occupancyRateEstimate,
+        operatingCostEstimate: data.operatingCostEstimate,
+        offerType: "sell",
+        askingPrice: data.requestedFundingAmount,
+        documentNames: data.documentNames,
       });
-
-      // Funding ask isn't part of Property — log for now, Phase 8 admin
-      // console will use these to actually create the Opportunity.
-      console.log("Requested funding terms:", {
-        propertyId: property.id,
-        requestedFundingAmount: data.requestedFundingAmount,
-        expectedTermMonths: data.expectedTermMonths,
-      });
-
       setSubmitted(true);
     } catch (err) {
       setSubmitError(

@@ -1,54 +1,36 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getCurrentUser, createSession } from "@/lib/auth/session";
-import type { Investor } from "@/lib/types";
+import { requireRole } from "@/lib/auth/guards";
+import { prisma } from "@/lib/db";
 
-/**
- * Toggles an opportunity in the current investor's watchlist.
- * Since watchlist lives on the session-cookie user object (investors
- * aren't in mock-data/users.ts), this reads the user, mutates the
- * array, and re-writes the whole session cookie via createSession().
- */
 export async function toggleWatchlistAction(formData: FormData) {
-  const opportunityId = formData.get("opportunityId");
-  const redirectTo = formData.get("redirectTo");
+  const session = await requireRole("investor");
 
-  if (!opportunityId || typeof opportunityId !== "string") {
-    redirect("/dashboard/watchlist?error=Invalid+opportunity");
+  const opportunityId = String(formData.get("opportunityId") ?? "");
+  const redirectTo = String(formData.get("redirectTo") ?? "");
+
+  if (!opportunityId) {
+    redirect("/dashboard/watchlist?error=" + encodeURIComponent("Invalid opportunity"));
   }
 
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect("/login");
+  const existing = await prisma.watchlistItem.findUnique({
+    where: { userId_opportunityId: { userId: session.id, opportunityId } },
+  });
+
+  let added: boolean;
+  if (existing) {
+    await prisma.watchlistItem.delete({ where: { id: existing.id } });
+    added = false;
+  } else {
+    await prisma.watchlistItem.create({
+      data: { userId: session.id, opportunityId },
+    });
+    added = true;
   }
-  if (user.role !== "investor") {
-    redirect("/dashboard/watchlist?error=Only+investors+have+a+watchlist");
-  }
 
-  const investor = user as Investor;
-  const alreadyWatching = investor.watchlist.includes(opportunityId);
-
-  const updatedWatchlist = alreadyWatching
-    ? investor.watchlist.filter((id) => id !== opportunityId)
-    : [...investor.watchlist, opportunityId];
-
-  const updatedInvestor: Investor = {
-    ...investor,
-    watchlist: updatedWatchlist,
-    updatedAt: new Date().toISOString(),
-  };
-
-  await createSession(updatedInvestor);
-
-  const destination =
-    typeof redirectTo === "string" && redirectTo.length > 0
-      ? redirectTo
-      : "/dashboard/watchlist";
-
+  const destination = redirectTo || "/dashboard/watchlist";
   redirect(
-    `${destination}?success=${
-      alreadyWatching ? "Removed+from+watchlist" : "Added+to+watchlist"
-    }`
+    `${destination}?success=${encodeURIComponent(added ? "Added to watchlist" : "Removed from watchlist")}`
   );
 }

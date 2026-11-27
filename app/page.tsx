@@ -15,30 +15,39 @@ const HOW_IT_WORKS = [
   {
     icon: ShieldCheck,
     title: "We vet the property",
-    description: "Every listing goes through a review of its location, financials, and demand before it's opened for investment.",
+    description:
+      "Every listing goes through a review of its location, financials, and demand before it's opened for investment.",
   },
   {
     icon: TrendingUp,
     title: "You choose an opportunity",
-    description: "Browse vetted short-let opportunities and pick an amount and term that fits your goals.",
+    description:
+      "Browse vetted short-let opportunities and pick an amount and term that fits your goals.",
   },
   {
     icon: Wallet,
     title: "Your capital gets to work",
-    description: "Funds are pooled toward the opportunity, and your investment is tracked from day one.",
+    description:
+      "Funds are pooled toward the opportunity, and your investment is tracked from day one.",
   },
   {
     icon: ArrowRightLeft,
     title: "Receive returns at maturity",
-    description: "At the end of the term, withdraw your capital plus illustrative earnings, or reinvest.",
+    description:
+      "At the end of the term, withdraw your capital plus illustrative earnings, or reinvest.",
   },
 ];
 
-export default function Home() {
+export default async function Home() {
   const opportunities = investmentService.getOpportunities();
   const featured = opportunities
     .filter((o) => o.badges.includes("featured") || o.badges.includes("popular"))
     .slice(0, 3);
+
+  // Batch-fetch every property involved, once.
+  const propertyIds = Array.from(new Set(featured.map((o) => o.propertyId)));
+  const properties = await Promise.all(propertyIds.map((id) => propertyService.getById(id)));
+  const propertyById = new Map(properties.filter(Boolean).map((p) => [p!.id, p!]));
 
   const totalRaised = opportunities.reduce((sum, o) => sum + o.amountRaised, 0);
   const headline = getHeadlineReturn();
@@ -48,10 +57,8 @@ export default function Home() {
       <Navbar />
 
       <main>
-        {/* Hero */}
         <Hero />
 
-        {/* Trust stats */}
         <section className="border-b border-charcoal/10 bg-ivory-muted">
           <div className="mx-auto max-w-7xl px-6 py-10">
             <p className="mb-6 text-xs font-semibold uppercase tracking-wide text-charcoal/40">
@@ -86,7 +93,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* How It Works */}
         <section className="mx-auto max-w-7xl px-6 py-20">
           <h2 className="font-display text-3xl font-bold text-charcoal">How It Works</h2>
           <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -107,7 +113,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Featured opportunities */}
         <section className="bg-ivory-muted py-20">
           <div className="mx-auto max-w-7xl px-6">
             <div className="flex items-end justify-between">
@@ -123,14 +128,13 @@ export default function Home() {
                 <OpportunityCard
                   key={opp.id}
                   opportunity={opp}
-                  coverImage={getPropertyCover(propertyService.getById(opp.propertyId), opp.id)}
+                  coverImage={getPropertyCover(propertyById.get(opp.propertyId), opp.id)}
                 />
               ))}
             </div>
           </div>
         </section>
 
-        {/* Property owner CTA */}
         <section className="mx-auto max-w-7xl px-6 py-20">
           <div className="rounded-card bg-charcoal px-8 py-14 text-center sm:px-16">
             <h2 className="font-display text-3xl font-bold text-ivory">

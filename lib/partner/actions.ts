@@ -1,15 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getCurrentUser, createSession } from "@/lib/auth/session";
-import type { PropertyOwner, BankDetails } from "@/lib/types";
+import { requireRole } from "@/lib/auth/guards";
+import { prisma } from "@/lib/db";
+import { encrypt } from "@/lib/crypto/encrypt";
 
 export async function updatePartnerProfile(formData: FormData) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "property_owner") {
-    redirect("/login");
-  }
-  const owner = user as PropertyOwner;
+  const session = await requireRole("property_owner");
 
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
@@ -23,22 +20,42 @@ export async function updatePartnerProfile(formData: FormData) {
     redirect("/partner/dashboard/settings?error=First%20and%20last%20name%20are%20required");
   }
 
-  const bankDetails: BankDetails | undefined =
-    bankName && accountNumber && accountName
-      ? { bankName, accountNumber, accountName }
-      : undefined;
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: session.id },
+      data: { firstName, lastName, phone: phone || null },
+    });
 
-  const updated: PropertyOwner = {
-    ...owner,
-    firstName,
-    lastName,
-    phone: phone || undefined,
-    companyName: companyName || undefined,
-    bankDetails,
-    updatedAt: new Date().toISOString(),
-  };
+    if (companyName) {
+      await tx.partnerProfile.upsert({
+        where: { userId: session.id },
+        create: { userId: session.id, companyName },
+        update: { companyName },
+      });
+    }
 
-  await createSession(updated);
+    if (bankName && accountNumber && accountName) {
+      const encrypted = encrypt(accountNumber);
+      await tx.bankAccount.upsert({
+        where: {
+          userId_bankName_accountNumber: {
+            userId: session.id,
+            bankName,
+            accountNumber: encrypted,
+          },
+        },
+        create: {
+          userId: session.id,
+          bankName,
+          accountNumber: encrypted,
+          accountName,
+          verified: false,
+          nameMatchStatus: "pending",
+        },
+        update: {},
+      });
+    }
+  });
 
   redirect("/partner/dashboard/settings?success=Profile%20updated");
 }

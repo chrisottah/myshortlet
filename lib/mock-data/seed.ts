@@ -1,60 +1,24 @@
 // lib/mock-data/seed.ts
+// Export barrel for the mock arrays. Real data lives in Postgres and is
+// populated by prisma/seed.ts. These arrays are still imported by a few
+// pages that haven't been ported yet (B1 continuation / B2 / B3). When the
+// last importer is ported, this file is deleted in B7.
 
-import { investors, propertyOwners, adminUsers } from "./users";
-import { wallets } from "./wallets";
-import { properties } from "./properties";
-import { opportunities } from "./opportunities";
-import { investments } from "./investments";
-import { transactions } from "./transactions";
-import { deposits } from "./deposits";
-import { withdrawals } from "./withdrawals";
-import { cryptoTransactions } from "./crypto-transactions";
-import { notifications } from "./notifications";
-
-import { walletService } from "@/lib/services/wallet-service";
-import { propertyService } from "@/lib/services/property-service";
-import { investmentService } from "@/lib/services/investment-service";
-import { transactionService } from "@/lib/services/transaction-service";
-import { paymentService } from "@/lib/services/payment-service";
-import { withdrawalService } from "@/lib/services/withdrawal-service";
-import { notificationService } from "@/lib/services/notification-service";
-
-let seeded = false;
+export { investors, propertyOwners, adminUsers } from "./users";
+export { wallets } from "./wallets";
+export { properties } from "./properties";
+export { opportunities } from "./opportunities";
+export { investments } from "./investments";
+export { transactions } from "./transactions";
+export { withdrawals } from "./withdrawals";
+export { notifications } from "./notifications";
+export { deposits } from "./deposits";
+export { cryptoTransactions } from "./crypto-transactions";
 
 /**
- * Populates every mock repository once. Safe to call multiple times
- * (guarded by `seeded`) — call this from a server-side entrypoint
- * (e.g. a root layout or a dedicated `ensureSeeded()` import) before
- * any service is read from.
+ * @deprecated No-op. Data now lives in Postgres and is seeded by
+ * `prisma/seed.ts`. Kept so `app/layout.tsx` compiles until it's removed.
  */
 export function seedAll() {
-  if (seeded) return;
-  seeded = true;
-
-  walletService.seedWallets(wallets);
-  propertyService.seedProperties(properties);
-  investmentService.seedOpportunities(opportunities);
-  investmentService.seedInvestments(investments);
-  transactionService.seedTransactions(transactions);
-  paymentService.seedDeposits(deposits);
-  withdrawalService.seedWithdrawals(withdrawals);
-  notificationService.seedNotifications(notifications);
-
-  // Crypto transactions don't have a dedicated service yet (folded
-  // into paymentService/withdrawalService for deposits/withdrawals) —
-  // exported here for any future direct use.
-  void cryptoTransactions;
-
-  // Users aren't behind a repository/service yet (auth comes in Phase 5) —
-  // exported here so Phase 5's auth layer can import them directly.
-  void investors;
-  void propertyOwners;
-  void adminUsers;
+  // intentionally empty
 }
-
-export {
-  investors,
-  propertyOwners,
-  adminUsers,
-  cryptoTransactions,
-};

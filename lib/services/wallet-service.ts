@@ -1,87 +1,139 @@
 // lib/services/wallet-service.ts
+// Prisma-backed wallet service. Same function names as before, now DB-backed.
+// All balances are BigInt kobo.
 
-import { MockRepository, generateId } from "./mock-db";
-import { Wallet } from "@/lib/types";
+// lib/services/wallet-service.ts
+// Prisma-backed wallet service. Same function names as before, now DB-backed.
+// All balances are BigInt kobo.
 
-const walletRepo = new MockRepository<Wallet>();
+import { prisma } from "@/lib/db";
+import { postLedgerTransactionStandalone } from "@/lib/ledger/post";
+import { ensureAccount, ACCOUNT } from "@/lib/ledger/accounts";
+
+export interface WalletView {
+  id: string;
+  userId: string;
+  currency: string;
+  availableBalance: bigint;
+  investedBalance: bigint;
+  earningsBalance: bigint;
+  heldBalance: bigint;
+}
 
 export const walletService = {
-  getWalletByUserId(userId: string): Wallet | undefined {
-    return walletRepo.findOneWhere((w) => w.userId === userId);
-  },
-
-  createWallet(userId: string): Wallet {
-    const wallet: Wallet = {
-      id: generateId("wal"),
-      userId,
-      availableBalance: 0,
-      investedBalance: 0,
-      earningsBalance: 0,
-      updatedAt: new Date().toISOString(),
+  async getWalletByUserId(userId: string): Promise<WalletView | null> {
+    const w = await prisma.wallet.findUnique({ where: { userId } });
+    if (!w) return null;
+    return {
+      id: w.id,
+      userId: w.userId,
+      currency: w.currency,
+      availableBalance: w.availableBalance,
+      investedBalance: w.investedBalance,
+      earningsBalance: w.earningsBalance,
+      heldBalance: w.heldBalance,
     };
-    return walletRepo.create(wallet);
   },
 
-  seedWallets(items: Wallet[]) {
-    items.forEach((item) => walletRepo.create(item));
+  async createWallet(userId: string): Promise<WalletView> {
+    const w = await prisma.$transaction(async (tx) => {
+      // Ensure the user's ledger accounts exist alongside the wallet row.
+      await ensureAccount(tx, ACCOUNT.WALLET_AVAILABLE, userId);
+      await ensureAccount(tx, ACCOUNT.WALLET_INVESTED, userId);
+      await ensureAccount(tx, ACCOUNT.WALLET_EARNINGS, userId);
+      await ensureAccount(tx, ACCOUNT.WALLET_HELD, userId);
+      return tx.wallet.create({ data: { userId, currency: "NGN" } });
+    });
+    return {
+      id: w.id,
+      userId: w.userId,
+      currency: w.currency,
+      availableBalance: w.availableBalance,
+      investedBalance: w.investedBalance,
+      earningsBalance: w.earningsBalance,
+      heldBalance: w.heldBalance,
+    };
   },
 
-  creditAvailable(userId: string, amount: number): Wallet {
-    const wallet = this.getWalletByUserId(userId);
-    if (!wallet) throw new Error("Wallet not found");
-    return walletRepo.update(wallet.id, {
-      availableBalance: wallet.availableBalance + amount,
-      updatedAt: new Date().toISOString(),
-    })!;
+  async creditAvailable(userId: string, amountKobo: bigint, opts: { reference: string; kind: string; description?: string }): Promise<void> {
+    if (amountKobo <= 0n) throw new Error("creditAvailable: amount must be > 0");
+    await postLedgerTransactionStandalone({
+      reference: opts.reference,
+      kind: opts.kind,
+      description: opts.description,
+      entries: [
+        { code: ACCOUNT.DEPOSITS_DESIGNATED, amountKobo: -amountKobo },
+        { code: ACCOUNT.WALLET_AVAILABLE, userId, amountKobo },
+      ],
+    });
   },
 
-  debitAvailable(userId: string, amount: number): Wallet {
-    const wallet = this.getWalletByUserId(userId);
-    if (!wallet) throw new Error("Wallet not found");
-    if (wallet.availableBalance < amount) {
+  async debitAvailable(userId: string, amountKobo: bigint, opts: { reference: string; kind: string; description?: string }): Promise<void> {
+    if (amountKobo <= 0n) throw new Error("debitAvailable: amount must be > 0");
+    // Available balance check happens inside the posting transaction by reading the wallet.
+    const wallet = await prisma.wallet.findUnique({ where: { userId } });
+    if (!wallet || wallet.availableBalance < amountKobo) {
       throw new Error("Insufficient available balance");
     }
-    return walletRepo.update(wallet.id, {
-      availableBalance: wallet.availableBalance - amount,
-      updatedAt: new Date().toISOString(),
-    })!;
+    await postLedgerTransactionStandalone({
+      reference: opts.reference,
+      kind: opts.kind,
+      description: opts.description,
+      entries: [
+        { code: ACCOUNT.WALLET_AVAILABLE, userId, amountKobo: -amountKobo },
+        { code: ACCOUNT.PAYOUTS, amountKobo },
+      ],
+    });
   },
 
-  creditInvested(userId: string, amount: number): Wallet {
-    const wallet = this.getWalletByUserId(userId);
-    if (!wallet) throw new Error("Wallet not found");
-    return walletRepo.update(wallet.id, {
-      investedBalance: wallet.investedBalance + amount,
-      updatedAt: new Date().toISOString(),
-    })!;
+  async creditInvested(userId: string, amountKobo: bigint, opts: { reference: string; kind: string; description?: string }): Promise<void> {
+    // Moves between two of the user's own wallet accounts; the total liability
+    // to the user is unchanged, so no platform account is touched.
+    if (amountKobo <= 0n) throw new Error("creditInvested: amount must be > 0");
+    await postLedgerTransactionStandalone({
+      reference: opts.reference,
+      kind: opts.kind,
+      description: opts.description,
+      entries: [
+        { code: ACCOUNT.WALLET_AVAILABLE, userId, amountKobo: -amountKobo },
+        { code: ACCOUNT.WALLET_INVESTED, userId, amountKobo },
+      ],
+    });
   },
 
   /**
-   * Used when an investment matures and is withdrawn: moves the
-   * principal out of investedBalance, earnings out of earningsBalance,
-   * and credits both to availableBalance.
+   * Used when an investment matures: move principal out of invested and
+   * earnings out of earnings, credit both to available.
    */
-  debitEarningsAndInvested(
-    userId: string,
-    principal: number,
-    earnings: number
-  ): Wallet {
-    const wallet = this.getWalletByUserId(userId);
-    if (!wallet) throw new Error("Wallet not found");
-    return walletRepo.update(wallet.id, {
-      investedBalance: Math.max(0, wallet.investedBalance - principal),
-      earningsBalance: Math.max(0, wallet.earningsBalance - earnings),
-      availableBalance: wallet.availableBalance + principal + earnings,
-      updatedAt: new Date().toISOString(),
-    })!;
+  async debitEarningsAndInvested(userId: string, principalKobo: bigint, earningsKobo: bigint, opts: { reference: string; kind: string; description?: string }): Promise<void> {
+    await postLedgerTransactionStandalone({
+      reference: opts.reference,
+      kind: opts.kind,
+      description: opts.description,
+      entries: [
+        { code: ACCOUNT.WALLET_INVESTED, userId, amountKobo: -principalKobo },
+        { code: ACCOUNT.WALLET_EARNINGS, userId, amountKobo: -earningsKobo },
+        { code: ACCOUNT.WALLET_AVAILABLE, userId, amountKobo: principalKobo + earningsKobo },
+      ],
+    });
   },
 
-  creditEarnings(userId: string, amount: number): Wallet {
-    const wallet = this.getWalletByUserId(userId);
-    if (!wallet) throw new Error("Wallet not found");
-    return walletRepo.update(wallet.id, {
-      earningsBalance: wallet.earningsBalance + amount,
-      updatedAt: new Date().toISOString(),
-    })!;
+  async creditEarnings(userId: string, amountKobo: bigint, opts: { reference: string; kind: string; description?: string }): Promise<void> {
+    if (amountKobo <= 0n) throw new Error("creditEarnings: amount must be > 0");
+    await postLedgerTransactionStandalone({
+      reference: opts.reference,
+      kind: opts.kind,
+      description: opts.description,
+      entries: [
+        { code: ACCOUNT.ACCRUED_LIABILITY, amountKobo: -amountKobo },
+        { code: ACCOUNT.WALLET_EARNINGS, userId, amountKobo },
+      ],
+    });
+  },
+
+  async seedWallets(_items: unknown[]): Promise<void> {
+    throw new Error(
+      "walletService.seedWallets is deprecated; use prisma/seed.ts."
+    );
   },
 };

@@ -15,7 +15,7 @@ export default async function PropertyDetailPage({
   if (!user || user.role !== "property_owner") redirect("/login");
   const owner = user as PropertyOwner;
 
-  const property = propertyService.getById(id);
+  const property = await propertyService.getById(id);
   if (!property || property.ownerId !== owner.id) notFound();
 
   const opportunity =

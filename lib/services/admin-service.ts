@@ -38,24 +38,25 @@ export const adminService = {
       );
   },
 
-  getDashboardMetrics() {
-    const pendingDeposits = paymentService.getPending();
-    const pendingWithdrawals = withdrawalService.getPending();
-    const pendingProperties = [
-    ...propertyService.getByStatus("submitted"),
-    ...propertyService.getByStatus("under_review"),
-    ];
-    const allTransactions = transactionService.getAll();
+  async getDashboardMetrics() {
+    const pendingDeposits = await paymentService.getPending();
+    const pendingWithdrawals = await withdrawalService.getPending();
+    const [submitted, underReview] = await Promise.all([
+      propertyService.getByStatus("submitted"),
+      propertyService.getByStatus("under_review"),
+    ]);
+    const pendingProperties = [...submitted, ...underReview];
+    const allTransactions = await transactionService.getAll();
 
-    const totalDepositVolume = paymentService
-      .getAll()
+    const allDeposits = await paymentService.getAll();
+    const totalDepositVolume = allDeposits
       .filter((d) => d.status === "confirmed")
-      .reduce((sum, d) => sum + d.amount, 0);
+      .reduce((sum, d) => sum + Number(d.amountKobo / 100n), 0);
 
-    const totalWithdrawalVolume = withdrawalService
-      .getAll()
+    const allWithdrawals = await withdrawalService.getAll();
+    const totalWithdrawalVolume = allWithdrawals
       .filter((w) => w.status === "completed")
-      .reduce((sum, w) => sum + w.amount, 0);
+      .reduce((sum, w) => sum + Number(w.amountKobo / 100n), 0);
 
     return {
       pendingDepositsCount: pendingDeposits.length,

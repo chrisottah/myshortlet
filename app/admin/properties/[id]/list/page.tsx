@@ -12,7 +12,7 @@ export default async function ListPropertyPage({
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") redirect("/login");
 
-  const property = propertyService.getById(id);
+  const property = await propertyService.getById(id);
   if (!property) notFound();
   if (property.status !== "approved") {
     redirect("/admin/properties?error=Property%20must%20be%20approved%20first");

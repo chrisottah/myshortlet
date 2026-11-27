@@ -1,4 +1,3 @@
-// app/opportunities/page.tsx
 import { Navbar } from "@/components/marketing/navbar";
 import { Footer } from "@/components/marketing/footer";
 import { OpportunitiesGrid } from "@/components/marketing/opportunities-grid";
@@ -14,12 +13,17 @@ export const metadata = {
   description: `Browse vetted short-let investment opportunities across Nigeria and start from ${FROM}.`,
 };
 
-export default function OpportunitiesPage() {
+export default async function OpportunitiesPage() {
   const opportunities = investmentService.getOpportunities();
+
+  // Batch-fetch every property involved, in one query, instead of N getByIds.
+  const propertyIds = Array.from(new Set(opportunities.map((o) => o.propertyId)));
+  const properties = await Promise.all(propertyIds.map((id) => propertyService.getById(id)));
+  const propertyById = new Map(properties.filter(Boolean).map((p) => [p!.id, p!]));
 
   const coverImages: Record<string, string> = {};
   for (const opp of opportunities) {
-    coverImages[opp.id] = getPropertyCover(propertyService.getById(opp.propertyId), opp.id);
+    coverImages[opp.id] = getPropertyCover(propertyById.get(opp.propertyId), opp.id);
   }
 
   return (

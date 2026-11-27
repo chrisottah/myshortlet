@@ -6,7 +6,7 @@ import { TransactionsClient } from "@/components/dashboard/transactions-client";
 export default async function TransactionsPage() {
   const user = await getCurrentUser();
 
-  const transactions = user ? transactionService.getByUserId(user.id) : [];
+  const transactions = user ? await transactionService.getByUserId(user.id) : [];
 
   return (
     <Suspense fallback={null}>

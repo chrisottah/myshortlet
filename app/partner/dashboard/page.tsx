@@ -13,7 +13,7 @@ export default async function PartnerOverviewPage() {
   if (!user || user.role !== "property_owner") redirect("/login");
   const owner = user as PropertyOwner;
 
-  const properties = propertyService.getByOwnerId(owner.id);
+  const properties = await propertyService.getByOwnerId(owner.id);
   const allOpportunities = investmentService.getOpportunities();
 
   const pendingStatuses = new Set(["submitted", "under_review", "changes_requested"]);
@@ -62,7 +62,7 @@ export default async function PartnerOverviewPage() {
         {recentProperties.length === 0 ? (
           <div className="text-center py-10">
             <p className="text-charcoal/60 text-sm mb-4">
-              You haven not submitted any properties yet.
+              You have not submitted any properties yet.
             </p>
             <Link
               href="/partner/apply"
@@ -82,7 +82,6 @@ export default async function PartnerOverviewPage() {
                 >
                   <div>
                     <p className="text-charcoal font-medium text-sm">{p.title}</p>
-                    <p className="text-charcoal/50 text-xs">{String(p.location)}</p>
                   </div>
                   <div className="text-right">
                     <StatusBadge status={p.status} />

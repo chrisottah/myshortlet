@@ -10,7 +10,7 @@ export default async function PartnerPropertiesPage() {
   if (!user || user.role !== "property_owner") redirect("/login");
   const owner = user as PropertyOwner;
 
-  const properties = propertyService.getByOwnerId(owner.id);
+  const properties = await propertyService.getByOwnerId(owner.id);
   const allOpportunities = investmentService.getOpportunities();
 
   const propertiesWithOpportunity = properties.map((p) => ({

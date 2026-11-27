@@ -7,7 +7,13 @@ import { adminService } from "@/lib/services/admin-service";
 import { INVESTMENT_CONFIG } from "@/lib/config/investment";
 import type { AdminUser, PropertyType } from "@/lib/types";
 
-const PROPERTY_TYPES: PropertyType[] = ["apartment", "villa", "townhouse", "studio", "penthouse"];
+const PROPERTY_TYPES: PropertyType[] = [
+  "apartment",
+  "villa",
+  "townhouse",
+  "studio",
+  "penthouse",
+];
 
 async function requireAdmin(): Promise<AdminUser> {
   const user = await getCurrentUser();
@@ -28,13 +34,14 @@ function parseStringList(raw: FormDataEntryValue | null): string[] | null {
   }
 }
 
-const err = (path: string, message: string) => `${path}?error=${encodeURIComponent(message)}`;
+const err = (path: string, message: string) =>
+  `${path}?error=${encodeURIComponent(message)}`;
 
 export async function savePropertyContent(propertyId: string, formData: FormData) {
   const admin = await requireAdmin();
   const back = `/admin/content/${propertyId}`;
 
-  const property = propertyService.getById(propertyId);
+  const property = await propertyService.getById(propertyId);
   if (!property) redirect(err("/admin/content", "Property not found"));
 
   const title = String(formData.get("title") ?? "").trim();
@@ -63,7 +70,8 @@ export async function savePropertyContent(propertyId: string, formData: FormData
     redirect(err(back, "Image paths must start with / or https://"));
   }
 
-  propertyService.updateProperty(propertyId, {
+  // Scalar fields first.
+  await propertyService.updateProperty(propertyId, {
     title,
     description,
     type,
@@ -71,8 +79,13 @@ export async function savePropertyContent(propertyId: string, formData: FormData
     bathrooms,
     maxGuests,
     amenities,
-    images,
   });
+
+  // Images are a separate write path (delete all, recreate at positions 0..N).
+  await propertyService.setPropertyImages(
+    propertyId,
+    images.map((url) => ({ storageKey: url, url }))
+  );
 
   adminService.logAction({
     actorId: admin.id,

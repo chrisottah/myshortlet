@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { StepPersonalInfo } from "@/components/onboarding/step-personal-info";
 import { StepInvestmentProfile } from "@/components/onboarding/step-investment-profile";
 import { StepBankInfo } from "@/components/onboarding/step-bank-info";
@@ -22,7 +24,11 @@ export function RegisterWizard() {
   const [data, setData] = useState<InvestorApplicationData>(
     EMPTY_INVESTOR_APPLICATION
   );
+  // Password lives only in the wizard, not in InvestorApplicationData.
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function updateData(patch: Partial<InvestorApplicationData>) {
     setData((prev) => ({ ...prev, ...patch }));
@@ -33,8 +39,18 @@ export function RegisterWizard() {
       data.firstName.trim().length > 0 &&
       data.lastName.trim().length > 0 &&
       data.email.trim().length > 0 &&
-      data.phone.trim().length > 0
+      data.phone.trim().length > 0 &&
+      isPasswordValid()
     );
+  }
+
+  function isPasswordValid() {
+    if (password.length < 10) return false;
+    if (!/[a-z]/.test(password)) return false;
+    if (!/[A-Z]/.test(password)) return false;
+    if (!/[0-9]/.test(password)) return false;
+    if (password !== passwordConfirm) return false;
+    return true;
   }
 
   function isInvestmentProfileValid() {
@@ -57,14 +73,17 @@ export function RegisterWizard() {
   }
 
   function goNext() {
+    setError(null);
     setStep((s) => s + 1);
   }
 
   function goBack() {
+    setError(null);
     setStep((s) => s - 1);
   }
 
   async function handleSubmit() {
+    setError(null);
     setSubmitting(true);
     try {
       await registerInvestor({
@@ -72,6 +91,7 @@ export function RegisterWizard() {
         lastName: data.lastName,
         email: data.email,
         phone: data.phone,
+        password,
         riskTolerance: data.riskTolerance as "conservative" | "balanced" | "growth",
         monthlyBudget: data.monthlyBudget,
         goals: data.goals,
@@ -82,6 +102,14 @@ export function RegisterWizard() {
         cryptoNetwork: data.cryptoNetwork || undefined,
       });
       setStep(4);
+    } catch (err) {
+      // Server action calls redirect() on success, which throws internally.
+      // Only surface real errors, not the redirect.
+      const message =
+        err instanceof Error && !/NEXT_REDIRECT/.test(err.message)
+          ? err.message
+          : "Could not create your account. Please try again.";
+      setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -132,13 +160,51 @@ export function RegisterWizard() {
           </ol>
 
           {step === 0 && (
-            <StepPersonalInfo data={data} onChange={updateData} />
+            <>
+              <StepPersonalInfo data={data} onChange={updateData} />
+              <div className="mt-6 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 10 characters"
+                    required
+                  />
+                  <p className="text-xs text-charcoal/40">
+                    At least 10 characters, with uppercase, lowercase and a digit.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="passwordConfirm">Confirm password</Label>
+                  <Input
+                    id="passwordConfirm"
+                    type="password"
+                    autoComplete="new-password"
+                    value={passwordConfirm}
+                    onChange={(e) => setPasswordConfirm(e.target.value)}
+                    placeholder="Re-enter password"
+                    required
+                  />
+                  {passwordConfirm.length > 0 && password !== passwordConfirm && (
+                    <p className="text-xs text-red-600">Passwords do not match.</p>
+                  )}
+                </div>
+              </div>
+            </>
           )}
           {step === 1 && (
             <StepInvestmentProfile data={data} onChange={updateData} />
           )}
           {step === 2 && <StepBankInfo data={data} onChange={updateData} />}
           {isReviewStep && <StepReview data={data} />}
+
+          {error && (
+            <p className="mt-4 text-sm text-red-600">{error}</p>
+          )}
 
           <div className="flex justify-between mt-8">
             {step > 0 ? (

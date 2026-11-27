@@ -15,12 +15,17 @@ export interface InvestmentTier {
 
 // ---------- EDIT THESE FIGURES ----------
 
-/** Total return (decimal) for each term, e.g. 0.1255 = 12.55% over that term. */
+/**
+ * Total return (decimal) for each term.
+ * Longer terms must earn a HIGHER effective monthly rate than shorter ones —
+ * enforced by a Vitest test in lib/config/investment.test.ts.
+ * 1 mo = 12.55%/mo (anchor), 3 mo = 13.10%/mo, 6 mo = 13.65%/mo, 12 mo = 14.25%/mo.
+ */
 const RETURN_SCHEDULE_BY_TERM: Record<number, number> = {
-  1: 0.1255,
-  3: 0.3765,
-  6: 0.753,
-  12: 1.5066,
+  1: 0.1255,  // 12.55% total — 12.55% /mo
+  3: 0.3930,  // 39.30% total — 13.10% /mo
+  6: 0.8190,  // 81.90% total — 13.65% /mo
+  12: 1.7100, // 171.00% total — 14.25% /mo
 };
 
 /** Term used for the headline figure on cards and the homepage. */
@@ -81,14 +86,37 @@ export const INVESTMENT_CONFIG = {
   ),
 };
 
-/** Highest tier whose minimum is at or below the given minimum investment. */
+/** Total return (decimal) for a term. Throws if the term is not in the schedule. */
+export function getTotalReturnRate(termMonths: number): number {
+  const rate = RETURN_SCHEDULE_BY_TERM[termMonths];
+  if (rate === undefined) {
+    throw new Error(`No return rate configured for a ${termMonths}-month term`);
+  }
+  return rate;
+}
+
+/**
+ * Effective return per month for a term: totalReturnRate / termMonths.
+ * Enforces that longer terms are more profitable per month, not just in total.
+ */
+export function getEffectiveMonthlyRate(termMonths: number): number {
+  return getTotalReturnRate(termMonths) / termMonths;
+}
+
+/** @deprecated The return no longer depends on a per-opportunity base rate. */
+
+/**
+ * Highest tier whose minimum is at or below the given minimum investment.
+ * Used by the frontend to label a card/opportunity with its class.
+ * In the backend, `tier` is stored explicitly on the opportunity; this helper
+ * is display-only.
+ */
 export function getTierForMinInvestment(minInvestment: number): InvestmentTier {
   const sorted = [...TIERS].sort((a, b) => b.minInvestment - a.minInvestment);
   return sorted.find((t) => minInvestment >= t.minInvestment) ?? TIERS[0];
 }
 
-/** @deprecated The return no longer depends on a per-opportunity base rate. */
 export function getIllustrativeRateForTerm(_baseRate: number, termMonths: number): number {
-  const total = RETURN_SCHEDULE_BY_TERM[termMonths] ?? 0;
+  const total = getTotalReturnRate(termMonths);
   return Number(((total * 12) / termMonths).toFixed(4));
 }

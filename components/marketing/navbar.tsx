@@ -1,4 +1,3 @@
-// components/marketing/navbar.tsx
 import { getCurrentUser } from "@/lib/auth/session";
 import { NavbarClient } from "./navbar-client";
 

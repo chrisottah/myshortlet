@@ -10,7 +10,7 @@ export default async function AdminOverviewPage() {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") redirect("/login");
 
-  const metrics = adminService.getDashboardMetrics();
+  const metrics = await adminService.getDashboardMetrics();
 
   return (
     <div className="space-y-8">

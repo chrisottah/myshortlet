@@ -6,14 +6,20 @@ import { investmentService } from "@/lib/services/investment-service";
 import { transactionService } from "@/lib/services/transaction-service";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { formatCurrency, formatDate } from "@/lib/format";
-import type { Investor } from "@/lib/types";
+import { formatCurrencyKobo, koboToNaira } from "@/lib/money";
 
 export default async function DashboardOverviewPage() {
-  const user = (await getCurrentUser()) as Investor;
+  const user = await getCurrentUser();
+  if (!user) {
+    // The proxy should have caught this; defensive.
+    return null;
+  }
 
-  const wallet = walletService.getWalletByUserId(user.id);
+  // B0.5: wallet is DB-backed. Investments/transactions still use mock
+  // services and will be ported in B2/B3.
+  const wallet = await walletService.getWalletByUserId(user.id);
   const investments = investmentService.getInvestmentsByInvestor(user.id);
-  const recentTransactions = transactionService.getByUserId(user.id).slice(0, 5);
+  const recentTransactions = (await transactionService.getByUserId(user.id)).slice(0, 5);
 
   const activeInvestments = investments.filter(
     (inv) => inv.status === "active" || inv.status === "approaching_maturity"
@@ -27,9 +33,10 @@ export default async function DashboardOverviewPage() {
       opportunity: investmentService.getOpportunityById(inv.opportunityId),
     }));
 
-  const availableBalance = wallet?.availableBalance ?? 0;
-  const investedBalance = wallet?.investedBalance ?? 0;
-  const earningsBalance = wallet?.earningsBalance ?? 0;
+  const availableBalance = wallet?.availableBalance ?? 0n;
+  const investedBalance = wallet?.investedBalance ?? 0n;
+  const earningsBalance = wallet?.earningsBalance ?? 0n;
+  const totalBalance = availableBalance + investedBalance + earningsBalance;
 
   return (
     <div>
@@ -38,40 +45,38 @@ export default async function DashboardOverviewPage() {
           Welcome back, {user.firstName}
         </h1>
         <p className="mt-1 text-sm text-charcoal/60">
-          Here is a snapshot of your portfolio. All figures shown are
-          illustrative and for demo purposes.
+          Here is a snapshot of your portfolio.
         </p>
       </div>
 
-      {/* Stat cards */}
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Available Balance"
-          value={formatCurrency(availableBalance)}
+          value={formatCurrencyKobo(availableBalance)}
           icon={Wallet}
           hint="Ready to invest or withdraw"
         />
         <StatCard
           label="Invested Balance"
-          value={formatCurrency(investedBalance)}
+          value={formatCurrencyKobo(investedBalance)}
           icon={Layers}
           hint={`${activeInvestments.length} active investment${activeInvestments.length === 1 ? "" : "s"}`}
         />
         <StatCard
           label="Earnings Balance"
-          value={formatCurrency(earningsBalance)}
+          value={formatCurrencyKobo(earningsBalance)}
           icon={PiggyBank}
-          hint="Illustrative, accrued to date"
+          hint="Accrued to date"
         />
         <StatCard
           label="Total Portfolio Value"
-          value={formatCurrency(availableBalance + investedBalance + earningsBalance)}
+          value={formatCurrencyKobo(totalBalance)}
           icon={TrendingUp}
           hint="Across all balances"
         />
       </div>
 
-      {/* Recent investments */}
+      {/* Recent investments — still mock, ported in B2/B3 */}
       <div className="mt-8">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-charcoal">
@@ -88,7 +93,7 @@ export default async function DashboardOverviewPage() {
         {recentInvestments.length === 0 ? (
           <div className="mt-4 rounded-card border border-dashed border-charcoal/20 bg-white p-8 text-center">
             <p className="text-sm text-charcoal/60">
-              You haven not made any investments yet.
+              You have not made any investments yet.
             </p>
             <Link
               href="/opportunities"
@@ -127,7 +132,7 @@ export default async function DashboardOverviewPage() {
         )}
       </div>
 
-      {/* Recent transactions */}
+      {/* Recent transactions — still mock, ported in B1 continuation */}
       <div className="mt-8">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-charcoal">

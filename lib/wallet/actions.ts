@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { paymentService } from "@/lib/services/payment-service";
 import { withdrawalService } from "@/lib/services/withdrawal-service";
 import type { PaymentMethod } from "@/lib/types";
+import { nairaToKobo } from "@/lib/money";
 
 function walletError(message: string): never {
   redirect(`/dashboard/wallet?error=${encodeURIComponent(message)}`);
@@ -47,17 +48,17 @@ export async function submitDeposit(formData: FormData) {
 
   try {
     if (method === "crypto") {
-      paymentService.initiateCryptoDeposit({
+      await paymentService.initiateCryptoDeposit({
         userId: user.id,
-        amount,
-        cryptoAsset,
+        amountKobo: nairaToKobo(amount),
+        cryptoAsset: cryptoAsset as "USDT" | "USDC" | "BTC" | "ETH",
         cryptoNetwork,
         cryptoTxHash,
       });
     } else {
-      paymentService.initiateBankDeposit({
+      await paymentService.initiateBankDeposit({
         userId: user.id,
-        amount,
+        amountKobo: nairaToKobo(amount),
         bankReference,
       });
     }
@@ -67,7 +68,7 @@ export async function submitDeposit(formData: FormData) {
 
   revalidatePath("/dashboard/wallet");
   revalidatePath("/dashboard");
-  walletSuccess("Deposit submitted — pending verification (demo).");
+  walletSuccess("Deposit submitted — pending verification.");
 }
 
 export async function submitWithdrawal(formData: FormData) {
@@ -98,14 +99,14 @@ export async function submitWithdrawal(formData: FormData) {
 
   try {
     if (method === "crypto") {
-      withdrawalService.requestWithdrawal({
+      await withdrawalService.requestWithdrawal({
         userId: user.id,
         amount,
         method: "crypto",
         destinationWalletAddress,
       });
     } else {
-      withdrawalService.requestWithdrawal({
+      await withdrawalService.requestWithdrawal({
         userId: user.id,
         amount,
         method: "bank_transfer",
@@ -118,5 +119,5 @@ export async function submitWithdrawal(formData: FormData) {
 
   revalidatePath("/dashboard/wallet");
   revalidatePath("/dashboard");
-  walletSuccess("Withdrawal requested — pending processing (demo).");
+  walletSuccess("Withdrawal requested — pending processing.");
 }

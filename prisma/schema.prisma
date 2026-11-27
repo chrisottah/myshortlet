@@ -1,0 +1,756 @@
+// prisma/schema.prisma
+// MyShortlet — backend data model. See handover doc sections 4, 5, 7, 8, 11.
+// Money = BigInt kobo. Crypto amounts/rates = Decimal. Never floats for money.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  investor
+  property_owner
+  admin
+}
+
+enum UserStatus {
+  active
+  suspended
+  closed
+}
+
+enum KycStatus {
+  unverified
+  pending
+  verified
+  rejected
+}
+
+enum Tier {
+  starter
+  standard
+  select
+  premier
+}
+
+enum PropertyStatus {
+  draft
+  submitted
+  under_review
+  changes_requested
+  approved
+  rejected
+  live
+}
+
+enum PropertySourceType {
+  owner_offer
+  company_sourced
+}
+
+enum OfferType {
+  sell
+  lease
+}
+
+enum AcquisitionStatus {
+  not_started
+  in_progress
+  completed
+  cancelled
+}
+
+enum FundingSource {
+  investors
+  partner_prepaid
+  company
+}
+
+enum OpportunityStatus {
+  upcoming
+  open
+  almost_funded
+  funded
+  closed
+}
+
+enum InvestmentStatus {
+  pending
+  active
+  approaching_maturity
+  matured
+  withdrawn
+  withdrawn_early
+  reinvested
+  cancelled
+}
+
+enum DepositStatus {
+  pending
+  confirmed
+  failed
+  expired
+}
+
+enum WithdrawalStatus {
+  requested
+  approved
+  processing
+  completed
+  rejected
+  failed
+}
+
+enum PaymentMethod {
+  bank_transfer
+  crypto
+}
+
+enum CryptoAsset {
+  USDT
+  USDC
+  BTC
+  ETH
+}
+
+enum EarlyExitStatus {
+  requested
+  quoted
+  approved
+  rejected
+  paid
+  cancelled
+}
+
+enum PenaltyType {
+  percentage_of_principal
+  percentage_of_accrued
+}
+
+enum NotificationType {
+  investment_update
+  deposit_update
+  withdrawal_update
+  property_update
+  system
+}
+
+enum AuditActorRole {
+  admin
+  system
+  investor
+  property_owner
+}
+
+enum ConsentType {
+  terms
+  risk_disclosure
+  privacy
+  return_wording
+}
+
+// ---------------------------------------------------------------------------
+// Location (doc section 2: Country → Region → City; seed Nigeria only for now)
+// ---------------------------------------------------------------------------
+
+model Country {
+  id         String     @id @default(cuid())
+  code       String     @unique // ISO 3166-1 alpha-2, e.g. "NG"
+  name       String
+  currency   String     // ISO 4217, e.g. "NGN"
+  regions    Region[]
+  properties Property[]
+  createdAt  DateTime   @default(now())
+}
+
+model Region {
+  id         String     @id @default(cuid())
+  countryId  String
+  country    Country    @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  name       String     // e.g. "Lagos State"
+  cities     City[]
+  properties Property[]
+  createdAt  DateTime   @default(now())
+
+  @@unique([countryId, name])
+  @@index([countryId])
+}
+
+model City {
+  id         String     @id @default(cuid())
+  regionId   String
+  region     Region     @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  name       String     // e.g. "Lekki"
+  properties Property[]
+  createdAt  DateTime   @default(now())
+
+  @@unique([regionId, name])
+  @@index([regionId])
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  emailVerifiedAt    DateTime?
+  passwordHash       String?
+  firstName          String
+  lastName           String
+  phone              String?
+  role               Role
+  status             UserStatus @default(active)
+  kycStatus          KycStatus  @default(unverified)
+  kycTier            Int        @default(0)
+  onboardingComplete Boolean    @default(false)
+  mfaEnabled         Boolean    @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  investorProfile InvestorProfile?
+  partnerProfile  PartnerProfile?
+  adminProfile    AdminProfile?
+
+  wallets         Wallet[]
+  bankAccounts    BankAccount[]
+  cryptoAddresses CryptoAddress[]
+  deposits        Deposit[]
+  withdrawals     Withdrawal[]
+  investments     Investment[]
+  notifications   Notification[]
+  watchlist       WatchlistItem[]
+  consents        Consent[]
+  sessions        Session[]
+
+  @@index([role])
+  @@index([status])
+}
+
+model InvestorProfile {
+  id                String       @id @default(cuid())
+  userId            String       @unique
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  riskTolerance     String?
+  monthlyBudgetKobo BigInt?
+  goals             String[]
+  preferredAsset    CryptoAsset?
+  preferredNetwork  String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model PartnerProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AdminProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Session {
+  id        String    @id // opaque session id, stored in httpOnly cookie
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  ip        String?
+  userAgent String?
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model BankAccount {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankName        String
+  accountNumber   String   // encrypted at rest by the app layer
+  accountName     String
+  verified        Boolean  @default(false)
+  nameMatchStatus String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, bankName, accountNumber])
+  @@index([userId])
+}
+
+model CryptoAddress {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset         CryptoAsset
+  network       String
+  address       String
+  whitelistedAt DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([userId, asset, network, address])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Ledger (append-only double-entry). SUM(amountKobo) per transaction = 0.
+// ---------------------------------------------------------------------------
+
+model LedgerAccount {
+  id        String        @id @default(cuid())
+  code      String        // "wallet.available" | "deposits.designated" | ...
+  name      String
+  kind      String        // "asset" | "liability" | "equity" | "revenue" | "expense"
+  userId    String?       // null for platform accounts
+  createdAt DateTime      @default(now())
+  entries   LedgerEntry[]
+
+  @@unique([code, userId])
+  @@index([userId])
+}
+
+model LedgerTransaction {
+  id           String         @id @default(cuid())
+  reference    String         @unique
+  kind         String
+  description  String?
+  createdAt    DateTime       @default(now())
+  createdById  String?
+  investmentId String?
+  depositId    String?
+  withdrawalId String?
+  entries      LedgerEntry[]
+}
+
+model LedgerEntry {
+  id            String            @id @default(cuid())
+  transactionId String
+  transaction   LedgerTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  accountId     String
+  account       LedgerAccount     @relation(fields: [accountId], references: [id])
+  amountKobo    BigInt            // signed; +credit / -debit. Sum per txn = 0.
+  createdAt     DateTime          @default(now())
+
+  @@index([transactionId])
+  @@index([accountId, createdAt])
+}
+
+model Wallet {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency         String   @default("NGN")
+  availableBalance BigInt   @default(0)
+  investedBalance  BigInt   @default(0)
+  earningsBalance  BigInt   @default(0)
+  heldBalance      BigInt   @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Deposits & withdrawals
+// ---------------------------------------------------------------------------
+
+model Deposit {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  method         PaymentMethod
+  amountKobo     BigInt
+  status         DepositStatus @default(pending)
+  idempotencyKey String        @unique
+  providerRef    String?
+  bankReference  String?
+  cryptoTxHash   String?
+  cryptoAsset    CryptoAsset?
+  cryptoNetwork  String?
+  cryptoAmount   Decimal?      @db.Decimal(38, 18)
+  lockedRate     Decimal?      @db.Decimal(38, 18)
+  rateSource     String?
+  confirmations  Int?
+  expiresAt      DateTime?
+  confirmedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([userId, status])
+  @@index([status])
+}
+
+model Withdrawal {
+  id                    String           @id @default(cuid())
+  userId                String
+  user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  method                PaymentMethod
+  amountKobo            BigInt
+  feeKobo               BigInt           @default(0)
+  status                WithdrawalStatus @default(requested)
+  idempotencyKey        String           @unique
+  bankAccountId         String?
+  cryptoAddressId       String?
+  destinationSnapshot   Json?
+  lockedRate            Decimal?         @db.Decimal(38, 18)
+  rateSource            String?
+  approvingAdminId      String?
+  secondApproverAdminId String?
+  providerRef           String?
+  failureReason         String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@index([userId, status])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Property & media
+// ---------------------------------------------------------------------------
+
+model PropertyClass {
+  id                String   @id @default(cuid())
+  tier              Tier     @unique
+  name              String
+  tagline           String?
+  minInvestmentKobo BigInt
+  presetAmountsKobo BigInt[]
+  sortOrder         Int      @default(0)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Property {
+  id                         String             @id @default(cuid())
+  ownerId                    String?
+  sourceType                 PropertySourceType @default(owner_offer)
+  title                      String
+  description                String
+  type                       String
+  countryId                  String
+  regionId                   String
+  cityId                     String
+  country                    Country            @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  region                     Region             @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  city                       City               @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  addressLine                String?
+  bedrooms                   Int
+  bathrooms                  Int
+  maxGuests                  Int
+  amenities                  String[]
+  status                     PropertyStatus     @default(draft)
+
+  offerType                  OfferType?
+  askingPriceKobo            BigInt?
+  leaseTerms                 String?
+  acquisitionStatus          AcquisitionStatus  @default(not_started)
+  internalFundingSource      FundingSource?
+
+  acquisitionCostKobo        BigInt?
+  estimatedAnnualRevenueKobo BigInt?
+  occupancyRateEstimate      Decimal?           @db.Decimal(5, 4)
+  operatingCostEstimateKobo  BigInt?
+
+  reviewNotes Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  images      PropertyImage[]
+  documents   PropertyDocument[]
+  opportunity Opportunity?
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([sourceType])
+}
+
+model PropertyImage {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  storageKey String
+  url        String?
+  position   Int
+  caption    String?
+  createdAt  DateTime @default(now())
+
+  @@unique([propertyId, position])
+  @@index([propertyId])
+}
+
+model PropertyDocument {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  kind       String
+  storageKey String
+  filename   String
+  createdAt  DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+// ---------------------------------------------------------------------------
+// Opportunities & investments
+// ---------------------------------------------------------------------------
+
+model ReturnScheduleEntry {
+  id              String   @id @default(cuid())
+  termMonths      Int
+  totalReturnRate Decimal  @db.Decimal(10, 6)
+  effectiveFrom   DateTime
+  createdById     String?
+  createdAt       DateTime @default(now())
+
+  @@unique([termMonths, effectiveFrom])
+  @@index([termMonths, effectiveFrom])
+}
+
+model Opportunity {
+  id                String            @id @default(cuid())
+  propertyId        String            @unique
+  property          Property          @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  slug              String            @unique
+  title             String
+  summary           String
+  tier              Tier
+  minInvestmentKobo BigInt
+  maxInvestmentKobo BigInt?
+  targetAmountKobo  BigInt
+  amountRaisedKobo  BigInt            @default(0)
+  status            OpportunityStatus @default(upcoming)
+  badges            String[]
+  openDate          DateTime
+  closeDate         DateTime
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  investments Investment[]
+
+  @@index([status])
+  @@index([tier])
+  @@index([openDate, closeDate])
+}
+
+model Investment {
+  id                String           @id @default(cuid())
+  investorId        String
+  investor          User             @relation(fields: [investorId], references: [id], onDelete: Restrict)
+  opportunityId     String
+  opportunity       Opportunity      @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  principalKobo     BigInt
+  termMonths        Int
+  totalReturnRate   Decimal          @db.Decimal(10, 6)
+  termDays          Int
+  investedAt        DateTime         @default(now())
+  maturityDate      DateTime
+  earningsKobo      BigInt
+  maturityValueKobo BigInt
+  status            InvestmentStatus @default(active)
+  maturedAt         DateTime?
+  reinvestedFromId  String?          @unique
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  earlyExit EarlyExitRequest?
+
+  @@index([investorId, status])
+  @@index([opportunityId, status])
+  @@index([status, maturityDate])
+}
+
+model EarlyExitRequest {
+  id               String          @id @default(cuid())
+  investmentId     String          @unique
+  investment       Investment      @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  status           EarlyExitStatus @default(requested)
+  quotedPayoutKobo BigInt?
+  penaltyKobo      BigInt?
+  forfeitedKobo    BigInt?
+  penaltyType      PenaltyType?
+  penaltyPercent   Decimal?        @db.Decimal(6, 4)
+  forfeitFraction  Decimal?        @db.Decimal(6, 4)
+  decidedByAdminId String?
+  decidedAt        DateTime?
+  paidAt           DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// System, audit, notifications, misc
+// ---------------------------------------------------------------------------
+
+model SystemConfig {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+}
+
+model EmailOutbox {
+  id          String    @id @default(cuid())
+  toEmail     String
+  template    String
+  payload     Json
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  lastError   String?
+  scheduledAt DateTime  @default(now())
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, scheduledAt])
+}
+
+model WatchlistItem {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunityId String
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, opportunityId])
+  @@index([userId])
+}
+
+model Consent {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       ConsentType
+  version    String
+  acceptedAt DateTime    @default(now())
+  ip         String?
+
+  @@index([userId, type])
+}
+
+model AuditLog {
+  id         String         @id @default(cuid())
+  actorId    String?
+  actorRole  AuditActorRole
+  action     String
+  targetType String
+  targetId   String
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime       @default(now())
+
+  @@index([targetType, targetId])
+  @@index([actorId, createdAt])
+}
+
+model WebhookEvent {
+  id          String    @id @default(cuid())
+  provider    String
+  eventId     String
+  payload     Json
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([provider, eventId])
+  @@index([provider, processedAt])
+}
+
+model FxRate {
+  id        String   @id @default(cuid())
+  pair      String
+  rate      Decimal  @db.Decimal(38, 18)
+  source    String
+  quotedAt  DateTime
+  createdAt DateTime @default(now())
+
+  @@index([pair, quotedAt])
+}
+
+model IdempotencyKey {
+  key       String    @id
+  scope     String
+  userId    String?
+  result    Json?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  @@index([scope, userId])
+}
+
+model AccrualSnapshot {
+  id           String   @id @default(cuid())
+  investmentId String
+  day          DateTime @db.Date
+  accruedKobo  BigInt
+  createdAt    DateTime @default(now())
+
+  @@unique([investmentId, day])
+  @@index([day])
+}
+
+model JobRun {
+  id         String    @id @default(cuid())
+  job        String
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  status     String    @default("running")
+  processed  Int       @default(0)
+  error      String?
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}

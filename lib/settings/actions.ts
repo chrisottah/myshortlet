@@ -1,166 +1,160 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getCurrentUser, createSession } from "@/lib/auth/session";
-import type { Investor } from "@/lib/types";
-
-async function requireInvestor(): Promise<Investor> {
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect("/login");
-  }
-  if (user.role !== "investor") {
-    redirect("/dashboard/settings?error=Only+investors+can+edit+these+settings");
-  }
-  return user as Investor;
-}
+import { requireRole } from "@/lib/auth/guards";
+import { prisma } from "@/lib/db";
+import { encrypt } from "@/lib/crypto/encrypt";
 
 export async function updateProfileAction(formData: FormData) {
-  const firstName = formData.get("firstName");
-  const lastName = formData.get("lastName");
-  const phone = formData.get("phone");
+  const session = await requireRole("investor");
 
-  if (
-    !firstName ||
-    typeof firstName !== "string" ||
-    firstName.trim().length === 0 ||
-    !lastName ||
-    typeof lastName !== "string" ||
-    lastName.trim().length === 0
-  ) {
-    redirect("/dashboard/settings?error=First+and+last+name+are+required");
+  const firstName = String(formData.get("firstName") ?? "").trim();
+  const lastName = String(formData.get("lastName") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+
+  if (!firstName || !lastName) {
+    redirect("/dashboard/settings?error=" + encodeURIComponent("First and last name are required"));
   }
 
-  const investor = await requireInvestor();
+  await prisma.user.update({
+    where: { id: session.id },
+    data: { firstName, lastName, phone: phone || null },
+  });
 
-  const updated: Investor = {
-    ...investor,
-    firstName: (firstName as string).trim(),
-    lastName: (lastName as string).trim(),
-    phone: typeof phone === "string" && phone.trim() ? phone.trim() : undefined,
-    updatedAt: new Date().toISOString(),
-  };
-
-  await createSession(updated);
-  redirect("/dashboard/settings?success=Profile+updated");
+  redirect("/dashboard/settings?success=" + encodeURIComponent("Profile updated"));
 }
 
 export async function updateBankDetailsAction(formData: FormData) {
-  const bankName = formData.get("bankName");
-  const accountNumber = formData.get("accountNumber");
-  const accountName = formData.get("accountName");
+  const session = await requireRole("investor");
 
-  if (
-    !bankName ||
-    typeof bankName !== "string" ||
-    bankName.trim().length === 0 ||
-    !accountNumber ||
-    typeof accountNumber !== "string" ||
-    accountNumber.trim().length === 0 ||
-    !accountName ||
-    typeof accountName !== "string" ||
-    accountName.trim().length === 0
-  ) {
-    redirect("/dashboard/settings?error=All+bank+detail+fields+are+required");
+  const bankName = String(formData.get("bankName") ?? "").trim();
+  const accountNumber = String(formData.get("accountNumber") ?? "").trim();
+  const accountName = String(formData.get("accountName") ?? "").trim();
+
+  if (!bankName || !accountNumber || !accountName) {
+    redirect(
+      "/dashboard/settings?error=" + encodeURIComponent("All bank detail fields are required")
+    );
   }
 
-  const investor = await requireInvestor();
+  const encrypted = encrypt(accountNumber);
 
-  const updated: Investor = {
-    ...investor,
-    bankDetails: {
-      bankName: (bankName as string).trim(),
-      accountNumber: (accountNumber as string).trim(),
-      accountName: (accountName as string).trim(),
+  await prisma.bankAccount.upsert({
+    where: {
+      userId_bankName_accountNumber: {
+        userId: session.id,
+        bankName,
+        accountNumber: encrypted,
+      },
     },
-    updatedAt: new Date().toISOString(),
-  };
+    create: {
+      userId: session.id,
+      bankName,
+      accountNumber: encrypted,
+      accountName,
+      verified: false,
+      nameMatchStatus: "pending",
+    },
+    update: { accountName },
+  });
 
-  await createSession(updated);
-  redirect("/dashboard/settings?success=Bank+details+updated");
+  redirect("/dashboard/settings?success=" + encodeURIComponent("Bank details updated"));
 }
 
 export async function updateCryptoPreferenceAction(formData: FormData) {
-  const preferredAsset = formData.get("preferredAsset");
-  const preferredNetwork = formData.get("preferredNetwork");
-  const walletAddress = formData.get("walletAddress");
+  const session = await requireRole("investor");
 
-  if (
-    !preferredAsset ||
-    typeof preferredAsset !== "string" ||
-    !preferredNetwork ||
-    typeof preferredNetwork !== "string" ||
-    preferredNetwork.trim().length === 0
-  ) {
-    redirect("/dashboard/settings?error=Preferred+asset+and+network+are+required");
+  const preferredAsset = String(formData.get("preferredAsset") ?? "");
+  const preferredNetwork = String(formData.get("preferredNetwork") ?? "").trim();
+  const walletAddress = String(formData.get("walletAddress") ?? "").trim();
+
+  const validAssets = ["USDT", "USDC", "BTC", "ETH"] as const;
+  if (!validAssets.includes(preferredAsset as (typeof validAssets)[number])) {
+    redirect("/dashboard/settings?error=" + encodeURIComponent("Invalid crypto asset"));
+  }
+  if (!preferredNetwork) {
+    redirect("/dashboard/settings?error=" + encodeURIComponent("Preferred network is required"));
   }
 
-  const validAssets = ["USDT", "USDC", "BTC", "ETH"];
-  if (!validAssets.includes(preferredAsset as string)) {
-    redirect("/dashboard/settings?error=Invalid+crypto+asset");
-  }
-
-  const investor = await requireInvestor();
-
-  const updated: Investor = {
-    ...investor,
-     cryptoPreference: {
-      preferredAsset: preferredAsset as "USDT" | "USDC" | "BTC" | "ETH",
-      preferredNetwork: (preferredNetwork as string).trim(),
-      walletAddress:
-        typeof walletAddress === "string" && walletAddress.trim()
-          ? walletAddress.trim()
-          : undefined,
+  await prisma.investorProfile.upsert({
+    where: { userId: session.id },
+    create: {
+      userId: session.id,
+      preferredAsset: preferredAsset as (typeof validAssets)[number],
+      preferredNetwork,
     },
-    updatedAt: new Date().toISOString(),
-  };
+    update: {
+      preferredAsset: preferredAsset as (typeof validAssets)[number],
+      preferredNetwork,
+    },
+  });
 
-  await createSession(updated);
-  redirect("/dashboard/settings?success=Crypto+preference+updated");
+  // A wallet address is a saved, whitelisted recipient — only create it if
+  // an address was provided, and do not overwrite an existing verified one.
+  if (walletAddress) {
+    await prisma.cryptoAddress.upsert({
+      where: {
+        userId_asset_network_address: {
+          userId: session.id,
+          asset: preferredAsset as (typeof validAssets)[number],
+          network: preferredNetwork,
+          address: walletAddress,
+        },
+      },
+      create: {
+        userId: session.id,
+        asset: preferredAsset as (typeof validAssets)[number],
+        network: preferredNetwork,
+        address: walletAddress,
+        // Cooling period enforced at withdrawal time in B4; here it just isn't whitelisted yet.
+        whitelistedAt: null,
+      },
+      update: {},
+    });
+  }
+
+  redirect("/dashboard/settings?success=" + encodeURIComponent("Crypto preference updated"));
 }
 
 export async function updateInvestmentProfileAction(formData: FormData) {
-  const riskTolerance = formData.get("riskTolerance");
-  const monthlyBudget = formData.get("monthlyBudget");
-  const goalsRaw = formData.get("goals");
+  const session = await requireRole("investor");
 
-  if (
-    !riskTolerance ||
-    typeof riskTolerance !== "string" ||
-    !["conservative", "balanced", "growth"].includes(riskTolerance)
-  ) {
-    redirect("/dashboard/settings?error=Invalid+risk+tolerance");
+  const riskTolerance = String(formData.get("riskTolerance") ?? "");
+  const monthlyBudget = String(formData.get("monthlyBudget") ?? "").trim();
+  const goalsRaw = String(formData.get("goals") ?? "");
+
+  if (!["conservative", "balanced", "growth"].includes(riskTolerance)) {
+    redirect("/dashboard/settings?error=" + encodeURIComponent("Invalid risk tolerance"));
   }
 
-  const investor = await requireInvestor();
-
-  const parsedBudget =
-    typeof monthlyBudget === "string" && monthlyBudget.trim()
-      ? Number(monthlyBudget)
-      : undefined;
-
-  if (parsedBudget !== undefined && (!Number.isFinite(parsedBudget) || parsedBudget < 0)) {
-    redirect("/dashboard/settings?error=Invalid+monthly+budget");
+  let budgetKobo: bigint | null = null;
+  if (monthlyBudget) {
+    const n = Number(monthlyBudget);
+    if (!Number.isFinite(n) || n < 0) {
+      redirect("/dashboard/settings?error=" + encodeURIComponent("Invalid monthly budget"));
+    }
+    budgetKobo = BigInt(Math.round(n)) * 100n;
   }
 
-  const goals =
-    typeof goalsRaw === "string" && goalsRaw.trim().length > 0
-      ? goalsRaw
-          .split(",")
-          .map((g) => g.trim())
-          .filter((g) => g.length > 0)
-      : undefined;
+  const goals = goalsRaw
+    .split(",")
+    .map((g) => g.trim())
+    .filter((g) => g.length > 0);
 
-  const updated: Investor = {
-    ...investor,
-    investmentProfile: {
-      riskTolerance: riskTolerance as Investor["investmentProfile"]["riskTolerance"],
-      monthlyBudget: parsedBudget,
+  await prisma.investorProfile.upsert({
+    where: { userId: session.id },
+    create: {
+      userId: session.id,
+      riskTolerance,
+      monthlyBudgetKobo: budgetKobo,
       goals,
     },
-    updatedAt: new Date().toISOString(),
-  };
+    update: {
+      riskTolerance,
+      monthlyBudgetKobo: budgetKobo,
+      goals,
+    },
+  });
 
-  await createSession(updated);
-  redirect("/dashboard/settings?success=Investment+profile+updated");
+  redirect("/dashboard/settings?success=" + encodeURIComponent("Investment profile updated"));
 }

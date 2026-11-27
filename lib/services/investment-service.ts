@@ -15,8 +15,8 @@ import { INVESTMENT_CONFIG } from "@/lib/config/investment";
 import { walletService } from "./wallet-service";
 import { transactionService } from "./transaction-service";
 import { notificationService } from "./notification-service";
+import { nairaToKobo } from "@/lib/money";
 
-// Repositories are populated by seed data in Phase 3 via `seedInvestments`/`seedOpportunities`.
 const opportunityRepo = new MockRepository<InvestmentOpportunity>();
 const investmentRepo = new MockRepository<Investment>();
 
@@ -50,42 +50,42 @@ export const investmentService = {
   },
 
   createOpportunity(input: {
-  propertyId: string;
-  title: string;
-  summary: string;
-  minInvestment: number;
-  maxInvestment?: number;
-  targetAmount: number;
-  termMonths: number;
-  illustrativeReturnRate: number;
-  openDate: string;
-  closeDate: string;
-  badges?: InvestmentOpportunity["badges"];
-}): InvestmentOpportunity {
-  const now = new Date().toISOString();
-  const isOpenAlready = new Date(input.openDate) <= new Date(now);
+    propertyId: string;
+    title: string;
+    summary: string;
+    minInvestment: number;
+    maxInvestment?: number;
+    targetAmount: number;
+    termMonths: number;
+    illustrativeReturnRate: number;
+    openDate: string;
+    closeDate: string;
+    badges?: InvestmentOpportunity["badges"];
+  }): InvestmentOpportunity {
+    const now = new Date().toISOString();
+    const isOpenAlready = new Date(input.openDate) <= new Date(now);
 
-  const opportunity: InvestmentOpportunity = {
-    id: generateId("opp"),
-    propertyId: input.propertyId,
-    title: input.title,
-    summary: input.summary,
-    minInvestment: input.minInvestment,
-    maxInvestment: input.maxInvestment,
-    targetAmount: input.targetAmount,
-    amountRaised: 0,
-    termMonths: input.termMonths,
-    illustrativeReturnRate: input.illustrativeReturnRate,
-    status: isOpenAlready ? "open" : "upcoming",
-    badges: input.badges ?? [],
-    openDate: input.openDate,
-    closeDate: input.closeDate,
-    createdAt: now,
-    updatedAt: now,
-  };
+    const opportunity: InvestmentOpportunity = {
+      id: generateId("opp"),
+      propertyId: input.propertyId,
+      title: input.title,
+      summary: input.summary,
+      minInvestment: input.minInvestment,
+      maxInvestment: input.maxInvestment,
+      targetAmount: input.targetAmount,
+      amountRaised: 0,
+      termMonths: input.termMonths,
+      illustrativeReturnRate: input.illustrativeReturnRate,
+      status: isOpenAlready ? "open" : "upcoming",
+      badges: input.badges ?? [],
+      openDate: input.openDate,
+      closeDate: input.closeDate,
+      createdAt: now,
+      updatedAt: now,
+    };
 
-  return opportunityRepo.create(opportunity);
-},
+    return opportunityRepo.create(opportunity);
+  },
 
   calculateInvestment(amount: number, termMonths: number, opportunityId: string) {
     const opportunity = opportunityRepo.findById(opportunityId);
@@ -128,20 +128,20 @@ export const investmentService = {
    * credits invested balance, writes a transaction, updates the
    * opportunity's raised amount, and notifies the investor.
    */
-  createInvestment(input: {
+  async createInvestment(input: {
     investorId: string;
     opportunityId: string;
     amount: number;
     termMonths: number;
-  }): Investment {
+  }): Promise<Investment> {
     const opportunity = opportunityRepo.findById(input.opportunityId);
     if (!opportunity) throw new Error("Opportunity not found");
     if (input.amount < opportunity.minInvestment) {
       throw new Error("Amount below minimum investment");
     }
 
-    const wallet = walletService.getWalletByUserId(input.investorId);
-    if (!wallet || wallet.availableBalance < input.amount) {
+    const wallet = await walletService.getWalletByUserId(input.investorId);
+    if (!wallet || wallet.availableBalance < nairaToKobo(input.amount)) {
       throw new Error("Insufficient available balance");
     }
 
@@ -171,8 +171,14 @@ export const investmentService = {
 
     investmentRepo.create(investment);
 
-    walletService.debitAvailable(input.investorId, input.amount);
-    walletService.creditInvested(input.investorId, input.amount);
+    await walletService.debitAvailable(input.investorId, nairaToKobo(input.amount), {
+      reference: `investment.debit:${investment.id}`,
+      kind: "investment.debit",
+    });
+    await walletService.creditInvested(input.investorId, nairaToKobo(input.amount), {
+      reference: `investment.credit:${investment.id}`,
+      kind: "investment.credit",
+    });
 
     opportunityRepo.update(opportunity.id, {
       amountRaised: opportunity.amountRaised + input.amount,
@@ -201,14 +207,22 @@ export const investmentService = {
     return investmentRepo.update(investmentId, { status: "active" });
   },
 
-  markWithdrawn(investmentId: string) {
+  async markWithdrawn(investmentId: string) {
     const inv = investmentRepo.findById(investmentId);
     if (!inv) throw new Error("Investment not found");
-    walletService.debitEarningsAndInvested(inv.investorId, inv.amount, inv.earnings);
+    await walletService.debitEarningsAndInvested(
+      inv.investorId,
+      nairaToKobo(inv.amount),
+      nairaToKobo(inv.earnings),
+      {
+        reference: `investment.withdraw:${inv.id}`,
+        kind: "investment.withdraw",
+      }
+    );
     return investmentRepo.update(investmentId, { status: "withdrawn" });
   },
 
-  reinvest(investmentId: string, newOpportunityId: string, newTermMonths: number) {
+  async reinvest(investmentId: string, newOpportunityId: string, newTermMonths: number) {
     const matured = investmentRepo.findById(investmentId);
     if (!matured) throw new Error("Investment not found");
     if (matured.status !== "matured") throw new Error("Investment not matured");

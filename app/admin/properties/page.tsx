@@ -7,12 +7,15 @@ export default async function AdminPropertiesPage() {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") redirect("/login");
 
-  const properties = [
-    ...propertyService.getByStatus("submitted"),
-    ...propertyService.getByStatus("under_review"),
-  ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const [submitted, underReview, approved] = await Promise.all([
+    propertyService.getByStatus("submitted"),
+    propertyService.getByStatus("under_review"),
+    propertyService.getByStatus("approved"),
+  ]);
 
-  const approved = propertyService.getByStatus("approved");
+  const properties = [...submitted, ...underReview].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
 
   return <AdminPropertiesQueueClient pending={properties} approved={approved} />;
 }

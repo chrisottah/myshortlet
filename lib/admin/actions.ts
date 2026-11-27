@@ -18,13 +18,13 @@ async function requireAdmin(): Promise<AdminUser> {
 export async function startReview(propertyId: string) {
   const admin = await requireAdmin();
 
-  const property = propertyService.getById(propertyId);
+  const property = await propertyService.getById(propertyId);
   if (!property) {
     redirect("/admin/properties?error=Property%20not%20found");
   }
 
   if (property.status === "submitted") {
-    propertyService.updateStatus(propertyId, "under_review");
+    await propertyService.updateStatus(propertyId, "under_review");
     adminService.logAction({
       actorId: admin.id,
       actorRole: "admin",
@@ -41,12 +41,12 @@ export async function approveProperty(propertyId: string, formData: FormData) {
   const admin = await requireAdmin();
   const note = String(formData.get("note") ?? "").trim();
 
-  const property = propertyService.getById(propertyId);
+  const property = await propertyService.getById(propertyId);
   if (!property) {
     redirect("/admin/properties?error=Property%20not%20found");
   }
 
-  propertyService.updateStatus(
+  await propertyService.updateStatus(
     propertyId,
     "approved",
     note ? { note, byAdminId: admin.id } : undefined
@@ -72,12 +72,12 @@ export async function requestChanges(propertyId: string, formData: FormData) {
     redirect(`/admin/properties/${propertyId}?error=A%20note%20is%20required`);
   }
 
-  const property = propertyService.getById(propertyId);
+  const property = await propertyService.getById(propertyId);
   if (!property) {
     redirect("/admin/properties?error=Property%20not%20found");
   }
 
-  propertyService.updateStatus(propertyId, "changes_requested", {
+  await propertyService.updateStatus(propertyId, "changes_requested", {
     note,
     byAdminId: admin.id,
   });
@@ -102,12 +102,12 @@ export async function rejectProperty(propertyId: string, formData: FormData) {
     redirect(`/admin/properties/${propertyId}?error=A%20reason%20is%20required`);
   }
 
-  const property = propertyService.getById(propertyId);
+  const property = await propertyService.getById(propertyId);
   if (!property) {
     redirect("/admin/properties?error=Property%20not%20found");
   }
 
-  propertyService.updateStatus(propertyId, "rejected", {
+  await propertyService.updateStatus(propertyId, "rejected", {
     note,
     byAdminId: admin.id,
   });
@@ -127,7 +127,7 @@ export async function rejectProperty(propertyId: string, formData: FormData) {
 export async function createOpportunityForProperty(propertyId: string, formData: FormData) {
   const admin = await requireAdmin();
 
-  const property = propertyService.getById(propertyId);
+  const property = await propertyService.getById(propertyId);
   if (!property) {
     redirect("/admin/properties?error=Property%20not%20found");
   }
@@ -171,7 +171,7 @@ export async function createOpportunityForProperty(propertyId: string, formData:
       closeDate: new Date(closeDate).toISOString(),
     });
 
-    propertyService.updateStatus(propertyId, "live");
+    await propertyService.updateStatus(propertyId, "live");
 
     adminService.logAction({
       actorId: admin.id,

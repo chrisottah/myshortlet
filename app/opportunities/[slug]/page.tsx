@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { investmentService } from "@/lib/services/investment-service";
 import { propertyService } from "@/lib/services/property-service";
 import { INVESTMENT_CONFIG, getTierForMinInvestment } from "@/lib/config/investment";
-
 import {
   getHeadlineReturn,
   getTermRange,
@@ -44,7 +43,7 @@ export default async function OpportunityDetailPage({
   const opportunity = investmentService.getOpportunityById(slug);
   if (!opportunity) notFound();
 
-  const property = propertyService.getById(opportunity.propertyId);
+  const property = await propertyService.getById(opportunity.propertyId);
   const gallery = getPropertyImages(property, opportunity.id);
   const tier = getTierForMinInvestment(opportunity.minInvestment);
   const headline = getHeadlineReturn();
@@ -81,7 +80,6 @@ export default async function OpportunityDetailPage({
         </div>
 
         <div className="mt-10 grid gap-10 lg:grid-cols-3">
-          {/* Left column */}
           <div className="lg:col-span-2">
             <div className="flex flex-wrap gap-2">
               <Badge className="bg-charcoal text-ivory">{tier.name}</Badge>
@@ -141,7 +139,6 @@ export default async function OpportunityDetailPage({
               </>
             )}
 
-            {/* Funding progress */}
             <div className="mt-8 rounded-card border border-charcoal/10 bg-white p-6">
               <div className="flex items-center justify-between">
                 <span className="font-display text-lg font-semibold text-charcoal">
@@ -181,7 +178,6 @@ export default async function OpportunityDetailPage({
               </div>
             </div>
 
-            {/* Return schedule: follows the figures in lib/config/investment.ts */}
             <div className="mt-6 rounded-card border border-charcoal/10 bg-white p-6">
               <h3 className="font-display text-lg font-semibold text-charcoal">
                 Return schedule
@@ -205,7 +201,6 @@ export default async function OpportunityDetailPage({
             </div>
           </div>
 
-          {/* Right column — calculator */}
           <div className="lg:col-span-1">
             <div className="sticky top-24">
               <InvestmentCalculator opportunity={opportunity} />
